@@ -1,4 +1,4 @@
-// Dashboard.js - Neumorphic Design
+// Dashboard.js - Updated with User Management
 import React, { useState, useEffect } from "react";
 import { HardDrive } from "lucide-react";
 import { 
@@ -7,7 +7,8 @@ import {
   Users, 
   LogOut,
   Home,
-  RefreshCw,  // ← ADD THIS LINE
+  RefreshCw,
+  Settings,
 } from "lucide-react";
 import { Sparkles, Phone } from "lucide-react";
 // Import page components
@@ -17,12 +18,14 @@ import UsersPage from "./UsersPage";
 import UserLogsPage from "./UserLogsPage";
 import UserMeetingsPage from "./UserMeetingsPage";
 import UserExpensesPage from "./UserExpensesPage";
+import UserManagementPage from "./UserManagementPage";
 
 const API_BASE_URL = "https://geo-track-1.onrender.com";
 
 const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState("analytics");
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -70,6 +73,7 @@ const Dashboard = () => {
         localStorage.removeItem("token");
         window.location.href = "/login";
       }
+      setCurrentUserId(payload.id);
     } catch (e) {
       alert("Invalid token. Please login again.");
       localStorage.removeItem("token");
@@ -77,7 +81,7 @@ const Dashboard = () => {
     }
   }, []);
 
-  // ➕ OUTSIDE CLICK CLOSE (ADDED)
+  // ➕ OUTSIDE CLICK CLOSE
   useEffect(() => {
     const handler = (e) => {
       if (profileOpen && !e.target.closest(".profile-dropdown")) {
@@ -96,10 +100,10 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, selectedUser, clientsPage]);
 
-  // refresh users frequently when on users page
+  // refresh users frequently when on users or user management page
   useEffect(() => {
     const interval = setInterval(() => {
-      if (currentPage === "users") {
+      if (currentPage === "users" || currentPage === "userManagement") {
         fetchUsers();
       }
     }, 60000);
@@ -120,6 +124,8 @@ const Dashboard = () => {
         await fetchUsers();
         await fetchAllUserExpenses();
         await fetchAllUserMeetingsSummary();
+      } else if (currentPage === "userManagement") {
+        await fetchUsers();
       } else if (currentPage === "userLogs") {
         await fetchUserLogs();
       } else if (currentPage === "userMeetings") {
@@ -200,45 +206,48 @@ const Dashboard = () => {
       const fetchedUsers = data.users || [];
       setUsers(fetchedUsers);
 
-      const clockStatusMap = {};
-      for (const user of fetchedUsers) {
-        try {
-          const res = await fetch(`${API_BASE_URL}/admin/clock-status/${user.id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const result = await res.json();
-            clockStatusMap[user.id] = {
-              clocked_in: result.clocked_in,
-              last_seen: result.last_seen,
-            };
+      // Only fetch clock status if we're on the users page (not user management)
+      if (currentPage === "users") {
+        const clockStatusMap = {};
+        for (const user of fetchedUsers) {
+          try {
+            const res = await fetch(`${API_BASE_URL}/admin/clock-status/${user.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const result = await res.json();
+              clockStatusMap[user.id] = {
+                clocked_in: result.clocked_in,
+                last_seen: result.last_seen,
+              };
+            }
+          } catch (err) {
+            console.error(`Clock-status fetch failed → User: ${user.id}`, err);
           }
-        } catch (err) {
-          console.error(`Clock-status fetch failed → User: ${user.id}`, err);
         }
-      }
-      setUserClockIns(clockStatusMap);
+        setUserClockIns(clockStatusMap);
 
-      const meetingsMap = {};
-      for (const user of fetchedUsers) {
-        try {
-          const res = await fetch(`${API_BASE_URL}/admin/user-meetings/${user.id}?limit=5`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const result = await res.json();
-            const mList = result.meetings || [];
-            meetingsMap[user.id] = {
-              total: mList.length,
-              completed: mList.filter((m) => m.status === "COMPLETED").length || 0,
-              inProgress: mList.filter((m) => m.status === "IN_PROGRESS").length || 0,
-            };
+        const meetingsMap = {};
+        for (const user of fetchedUsers) {
+          try {
+            const res = await fetch(`${API_BASE_URL}/admin/user-meetings/${user.id}?limit=5`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const result = await res.json();
+              const mList = result.meetings || [];
+              meetingsMap[user.id] = {
+                total: mList.length,
+                completed: mList.filter((m) => m.status === "COMPLETED").length || 0,
+                inProgress: mList.filter((m) => m.status === "IN_PROGRESS").length || 0,
+              };
+            }
+          } catch (err) {
+            meetingsMap[user.id] = { total: 0, completed: 0, inProgress: 0 };
           }
-        } catch (err) {
-          meetingsMap[user.id] = { total: 0, completed: 0, inProgress: 0 };
         }
+        setUserMeetings(meetingsMap);
       }
-      setUserMeetings(meetingsMap);
     } catch (err) {
       console.error("Users error:", err);
       setError("Failed to load users.");
@@ -422,7 +431,8 @@ const Dashboard = () => {
   const navItems = [
     { id: "analytics", label: "Dashboard", icon: Home },
     { id: "clients", label: "Clients", icon: FileText },
-    { id: "users", label: "Users", icon: Users },
+    { id: "users", label: "Team Activity", icon: Users },
+    { id: "userManagement", label: "User Management", icon: Settings },
   ];
 
   return (
@@ -484,199 +494,198 @@ const Dashboard = () => {
         </nav>
 
         {/* Sidebar Metric */}
-<div
-  className="absolute bottom-8 left-6 right-6 p-5 rounded-2xl"
-  style={{
-    background: '#e6eaf0',
-    boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
-  }}
->
-  <div className="flex items-center justify-between mb-3">
-    <div className="flex items-center gap-2">
-      <HardDrive className="w-5 h-5 text-slate-600" />
-      <span className="text-sm font-semibold text-slate-700">
-        Storage Used
-      </span>
-    </div>
-    <span className="text-xs font-semibold text-slate-500">
-        62%
-    </span>
-  </div>
+        <div
+          className="absolute bottom-8 left-6 right-6 p-5 rounded-2xl"
+          style={{
+            background: '#e6eaf0',
+            boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-5 h-5 text-slate-600" />
+              <span className="text-sm font-semibold text-slate-700">
+                Storage Used
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-slate-500">
+                62%
+            </span>
+          </div>
 
-  {/* Progress Bar */}
-  <div
-    className="w-full h-2 rounded-full overflow-hidden"
-    style={{
-      background: '#d1d9e6',
-      boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
-    }}
-  >
-    <div
-      className="h-full rounded-full"
-      style={{
-        width: '62%',
-        background: 'linear-gradient(135deg, #667eea, #764ba2)',
-      }}
-    />
-  </div>
+          {/* Progress Bar */}
+          <div
+            className="w-full h-2 rounded-full overflow-hidden"
+            style={{
+              background: '#d1d9e6',
+              boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
+            }}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: '62%',
+                background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              }}
+            />
+          </div>
 
-  <p className="mt-2 text-xs text-slate-500">
-    6.2 GB of 10 GB used
-  </p>
-</div>
-
+          <p className="mt-2 text-xs text-slate-500">
+            6.2 GB of 10 GB used
+          </p>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="ml-72 p-6 max-h-screen overflow-y-auto">
         {/* Page Header */}
         <div className="mb-5 flex items-center justify-between">
-  <div>
-    <h1 className="text-2xl font-bold mb-1" style={{ color: '#1e293b' }}>
-      {currentPage === "analytics" && "Dashboard Overview"}
-      {currentPage === "clients" && "Client Management"}
-      {currentPage === "users" && "User Management"}
-      {currentPage === "userLogs" && "Location Tracking"}
-      {currentPage === "userMeetings" && "Meeting History"}
-      {currentPage === "userExpenses" && "Expense Reports"}
-    </h1>
-    <p style={{ color: '#64748b' }}>
-      {currentPage === "analytics" && "Monitor your business performance"}
-      {currentPage === "clients" && "View and manage all your clients"}
-      {currentPage === "users" && "Track your team members"}
-      {currentPage === "userLogs" && "Detailed location history"}
-      {currentPage === "userMeetings" && "Complete meeting logs"}
-      {currentPage === "userExpenses" && "Track and review expenses"}
-    </p>
-  </div>
+          <div>
+            <h1 className="text-2xl font-bold mb-1" style={{ color: '#1e293b' }}>
+              {currentPage === "analytics" && "Dashboard Overview"}
+              {currentPage === "clients" && "Client Management"}
+              {currentPage === "users" && "Team Activity"}
+              {currentPage === "userManagement" && "User Management"}
+              {currentPage === "userLogs" && "Location Tracking"}
+              {currentPage === "userMeetings" && "Meeting History"}
+              {currentPage === "userExpenses" && "Expense Reports"}
+            </h1>
+            <p style={{ color: '#64748b' }}>
+              {currentPage === "analytics" && "Monitor your business performance"}
+              {currentPage === "clients" && "View and manage all your clients"}
+              {currentPage === "users" && "Track your team members"}
+              {currentPage === "userManagement" && "Add, edit, and manage user accounts"}
+              {currentPage === "userLogs" && "Detailed location history"}
+              {currentPage === "userMeetings" && "Complete meeting logs"}
+              {currentPage === "userExpenses" && "Track and review expenses"}
+            </p>
+          </div>
 
-  <div className="flex items-center gap-4">
-    {currentPage === "analytics" && syncStatus && (
-      <button 
-        onClick={fetchData}
-        className="w-12 h-12 rounded-xl flex items-center justify-center transition-all hover:scale-105"
-        style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          boxShadow: '4px 4px 8px rgba(102, 126, 234, 0.4)',
-        }}
-      >
-        <RefreshCw className="w-5 h-5 text-white" />
-      </button>
-    )}
+          <div className="flex items-center gap-4">
+            {currentPage === "analytics" && syncStatus && (
+              <button 
+                onClick={fetchData}
+                className="w-12 h-12 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  boxShadow: '4px 4px 8px rgba(102, 126, 234, 0.4)',
+                }}
+              >
+                <RefreshCw className="w-5 h-5 text-white" />
+              </button>
+            )}
 
-    {/* PROFILE DROPDOWN */}
-    <div className="relative profile-dropdown">
-      <button
-        onClick={() => setProfileOpen(p => !p)}
-        className="w-12 h-12 rounded-full flex items-center justify-center"
-        style={{
-          background: '#e6eaf0',
-          boxShadow: '6px 6px 12px #c5c8cf, -6px -6px 12px #ffffff',
-        }}
-      >
-        <Users className="w-5 h-5 text-slate-600" />
-      </button>
+            {/* PROFILE DROPDOWN */}
+            <div className="relative profile-dropdown">
+              <button
+                onClick={() => setProfileOpen(p => !p)}
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{
+                  background: '#e6eaf0',
+                  boxShadow: '6px 6px 12px #c5c8cf, -6px -6px 12px #ffffff',
+                }}
+              >
+                <Users className="w-5 h-5 text-slate-600" />
+              </button>
 
-      {profileOpen && (
-  <div
-    className="absolute right-0 mt-4 w-64 rounded-2xl p-4 z-50"
-    style={{
-      background: '#ecf0f3',
-      boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
-    }}
-  >
-    {/* Header */}
-    <div className="mb-4">
-      <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-        Admin Account
-      </p>
-      <p className="text-xs" style={{ color: '#64748b' }}>
-        Billing & access
-      </p>
-    </div>
+              {profileOpen && (
+                <div
+                  className="absolute right-0 mt-4 w-64 rounded-2xl p-4 z-50"
+                  style={{
+                    background: '#ecf0f3',
+                    boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+                  }}
+                >
+                  {/* Header */}
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                      Admin Account
+                    </p>
+                    <p className="text-xs" style={{ color: '#64748b' }}>
+                      Billing & access
+                    </p>
+                  </div>
 
-    {/* Upgrade */}
-    <button
-      className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:scale-[1.02]"
-      style={{
-        background: '#ecf0f3',
-        boxShadow:
-          'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
-      }}
-    >
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, #667eea, #764ba2)',
-          boxShadow: '3px 3px 6px rgba(102,126,234,.4)',
-        }}
-      >
-        <Sparkles className="w-4 h-4 text-white" />
-      </div>
-      <span className="text-sm font-semibold text-slate-700">
-        Upgrade Plan
-      </span>
-    </button>
+                  {/* Upgrade */}
+                  <button
+                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:scale-[1.02]"
+                    style={{
+                      background: '#ecf0f3',
+                      boxShadow:
+                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
+                    }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                        boxShadow: '3px 3px 6px rgba(102,126,234,.4)',
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">
+                      Upgrade Plan
+                    </span>
+                  </button>
 
-    {/* Contact Sales */}
-    <button
-      className="w-full flex items-center gap-3 p-3 rounded-xl mb-3 transition-all hover:scale-[1.02]"
-      style={{
-        background: '#ecf0f3',
-        boxShadow:
-          'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
-      }}
-    >
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center"
-        style={{
-          background: '#e6eaf0',
-          boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
-        }}
-      >
-        <Phone className="w-4 h-4 text-slate-600" />
-      </div>
-      <span className="text-sm font-semibold text-slate-700">
-        Contact Sales
-      </span>
-    </button>
+                  {/* Contact Sales */}
+                  <button
+                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-3 transition-all hover:scale-[1.02]"
+                    style={{
+                      background: '#ecf0f3',
+                      boxShadow:
+                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
+                    }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: '#e6eaf0',
+                        boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
+                      }}
+                    >
+                      <Phone className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">
+                      Contact Sales
+                    </span>
+                  </button>
 
-    {/* Divider */}
-    <div className="my-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                  {/* Divider */}
+                  <div className="my-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
 
-    {/* Logout */}
-    <button
-      onClick={() => {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }}
-      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
-      style={{
-        background: '#ecf0f3',
-        boxShadow:
-          'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
-      }}
-    >
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center"
-        style={{
-          background: '#fee2e2',
-          boxShadow: '2px 2px 4px rgba(239,68,68,.3)',
-        }}
-      >
-        <LogOut className="w-4 h-4 text-red-600" />
-      </div>
-      <span className="text-sm font-semibold text-red-600">
-        Logout
-      </span>
-    </button>
-  </div>
-)}
-
-    </div>
-  </div>
-</div>
-
+                  {/* Logout */}
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("token");
+                      window.location.href = "/login";
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
+                    style={{
+                      background: '#ecf0f3',
+                      boxShadow:
+                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
+                    }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: '#fee2e2',
+                        boxShadow: '2px 2px 4px rgba(239,68,68,.3)',
+                      }}
+                    >
+                      <LogOut className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span className="text-sm font-semibold text-red-600">
+                      Logout
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Error Display */}
         {error && (
@@ -732,6 +741,12 @@ const Dashboard = () => {
             onViewLogs={handleViewUserLogs}
             onViewMeetings={handleViewUserMeetings}
             onViewExpenses={handleViewUserExpenses}
+                      />
+        ) : currentPage === "userManagement" ? (
+          <UserManagementPage
+            users={users}
+            currentUserId={currentUserId}
+            onRefresh={fetchUsers}
           />
         ) : currentPage === "userLogs" ? (
           <UserLogsPage
@@ -747,7 +762,10 @@ const Dashboard = () => {
             pagination={meetingsPagination}
             onBack={() => setCurrentPage("users")}
             onRefresh={() =>
-              fetchUserMeetingsDetail(meetingsPagination.page, meetingsPagination.limit)
+              fetchUserMeetingsDetail(
+                meetingsPagination.page,
+                meetingsPagination.limit
+              )
             }
             onPageChange={(page) =>
               fetchUserMeetingsDetail(page, meetingsPagination.limit)
@@ -760,7 +778,10 @@ const Dashboard = () => {
             pagination={expensesPagination}
             onBack={() => setCurrentPage("users")}
             onRefresh={() =>
-              fetchUserExpensesDetail(expensesPagination.page, expensesPagination.limit)
+              fetchUserExpensesDetail(
+                expensesPagination.page,
+                expensesPagination.limit
+              )
             }
             onPageChange={(page) =>
               fetchUserExpensesDetail(page, expensesPagination.limit)
