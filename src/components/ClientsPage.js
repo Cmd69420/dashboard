@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RefreshCw, MapPin, Download, Search, CheckCircle, XCircle, User, ExternalLink } from "lucide-react";
+import { Package,RefreshCw, MapPin, Download, Search, CheckCircle, XCircle, User, ExternalLink } from "lucide-react";
 
 const NeumorphicCard = ({ children, className = "" }) => (
   <div
@@ -45,7 +45,8 @@ const ClientsPage = ({
   clientsTotalPages, 
   clientsTotal,
   onRefresh,
-  onPageChange 
+  onPageChange ,
+  onEditServices
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [allClients, setAllClients] = useState([]);
@@ -392,7 +393,7 @@ const ClientsPage = ({
                 <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>Status</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>Location</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>GPS</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>Created</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -506,15 +507,30 @@ const ClientsPage = ({
                     </td>
 
                     {/* Created */}
-                    <td className="py-4 px-4">
-                      <span className="text-xs" style={{ color: '#64748b' }}>
-                        {new Date(client.created_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </span>
-                    </td>
+                    {/* Actions */}
+<td className="py-4 px-4">
+  <div className="flex items-center gap-2">
+    <button
+      onClick={() => onEditServices && onEditServices(client)}
+      className="px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105 flex items-center gap-1"
+      style={{
+        background: '#ecf0f3',
+        boxShadow: '3px 3px 6px rgba(163,177,198,0.4), -3px -3px 6px rgba(255,255,255, 0.8)',
+        color: '#667eea',
+      }}
+      title="Manage Services"
+    >
+      <Package className="w-3 h-3" />
+      Services
+    </button>
+    <span className="text-xs" style={{ color: '#94a3b8' }}>
+      {new Date(client.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })}
+    </span>
+  </div>
+</td>
                   </tr>
                 ))
               )}

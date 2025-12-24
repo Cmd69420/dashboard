@@ -1,7 +1,7 @@
 // Dashboard.js - Updated with User Management
 import React, { useState, useEffect } from "react";
 import { HardDrive } from "lucide-react";
-import { 
+import { Package,
   TrendingUp, 
   FileText, 
   Users, 
@@ -19,6 +19,8 @@ import UserLogsPage from "./UserLogsPage";
 import UserMeetingsPage from "./UserMeetingsPage";
 import UserExpensesPage from "./UserExpensesPage";
 import UserManagementPage from "./UserManagementPage";
+import ClientServicesPage from './ClientServicesPage';
+import ClientServicesModal from './ClientServicesModal';
 
 const API_BASE_URL = "https://geo-track-1.onrender.com";
 
@@ -52,6 +54,9 @@ const Dashboard = () => {
   const [expensesPagination, setExpensesPagination] = useState({ 
     page: 1, limit: 20, total: 0, totalPages: 1 
   });
+
+  //clientservicestate
+  const [selectedClientForServices, setSelectedClientForServices] = useState(null);
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
@@ -429,11 +434,16 @@ const Dashboard = () => {
   };
 
   const navItems = [
-    { id: "analytics", label: "Dashboard", icon: Home },
-    { id: "clients", label: "Clients", icon: FileText },
-    { id: "users", label: "Team Activity", icon: Users },
-    { id: "userManagement", label: "User Management", icon: Settings },
-  ];
+  { id: "analytics", label: "Dashboard", icon: Home },
+  { id: "clients", label: "Clients", icon: FileText },
+  { id: "clientServices", label: "Client Services", icon: Package }, // NEW
+  { id: "users", label: "Team Activity", icon: Users },
+  { id: "userManagement", label: "User Management", icon: Settings },
+];
+
+  const handleEditClientServices = (client) => {
+  setSelectedClientForServices(client);
+};
 
   return (
     <div className="min-h-screen" style={{ background: '#ecf0f3' }}>
@@ -544,6 +554,7 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold mb-1" style={{ color: '#1e293b' }}>
               {currentPage === "analytics" && "Dashboard Overview"}
               {currentPage === "clients" && "Client Management"}
+              {currentPage === "clientServices" && "Client Services"}
               {currentPage === "users" && "Team Activity"}
               {currentPage === "userManagement" && "User Management"}
               {currentPage === "userLogs" && "Location Tracking"}
@@ -553,6 +564,7 @@ const Dashboard = () => {
             <p style={{ color: '#64748b' }}>
               {currentPage === "analytics" && "Monitor your business performance"}
               {currentPage === "clients" && "View and manage all your clients"}
+              {currentPage === "clientServices" && "Manage all client service subscriptions"}
               {currentPage === "users" && "Track your team members"}
               {currentPage === "userManagement" && "Add, edit, and manage user accounts"}
               {currentPage === "userLogs" && "Detailed location history"}
@@ -730,6 +742,12 @@ const Dashboard = () => {
             clientsTotal={clientsTotal}
             onRefresh={() => fetchClients(clientsPage, CLIENTS_PER_PAGE)}
             onPageChange={setClientsPage}
+            onEditServices={handleEditClientServices}
+          />
+        ) : currentPage === "clientServices" ? (
+          <ClientServicesPage
+            onRefresh={fetchData}
+            onEditServices={handleEditClientServices}
           />
         ) : currentPage === "users" ? (
           <UsersPage
@@ -788,6 +806,13 @@ const Dashboard = () => {
             }
           />
         ) : null}
+
+          {selectedClientForServices && (
+            <ClientServicesModal
+              client={selectedClientForServices}
+              onClose={() => setSelectedClientForServices(null)}
+            />
+        )}
       </main>
     </div>
   );
