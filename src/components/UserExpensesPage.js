@@ -184,8 +184,9 @@ const UserExpensesPage = ({
         <div className="space-y-4">
           {expenses.map((exp) => {
             let attachmentsList = [];
-            if (Array.isArray(exp.receiptUrls)) {
-              attachmentsList = exp.receiptUrls.filter(
+            if (Array.isArray(exp.receiptImages)) {
+
+              attachmentsList = exp.receiptImages.filter(
                 (url) => url && url.trim().length > 0
               );
             }
@@ -281,24 +282,41 @@ const UserExpensesPage = ({
                   </span>
                   
                   {attachmentsList.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Paperclip className="w-4 h-4" style={{ color: '#94a3b8' }} />
-                      <div className="text-xs">
-                        {attachmentsList.map((url, idx) => (
-                          <a
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline mr-2 font-medium"
-                            style={{ color: '#667eea' }}
-                          >
-                            Receipt {idx + 1}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+  <div className="mt-3">
+    <p
+      className="text-xs font-semibold mb-2"
+      style={{ color: "#94a3b8" }}
+    >
+      Receipts
+    </p>
+
+    <div className="flex gap-2 flex-wrap">
+      {attachmentsList.map((img, idx) => {
+        const imageSrc = img.startsWith("data:")
+          ? img
+          : `data:image/webp;base64,${img}`;
+
+        return (
+          <img
+            key={idx}
+            src={imageSrc}
+            alt={`Receipt ${idx + 1}`}
+            style={{
+              width: 90,
+              height: 90,
+              objectFit: "cover",
+              borderRadius: 10,
+              border: "1px solid rgba(148,163,184,0.3)",
+              cursor: "pointer",
+            }}
+            onClick={() => window.open(imageSrc, "_blank")}
+          />
+        );
+      })}
+    </div>
+  </div>
+)}
+
                 </div>
               </NeumorphicCard>
             );

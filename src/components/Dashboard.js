@@ -162,20 +162,41 @@ const Dashboard = () => {
       const allClients = clientsData.clients || [];
 
       const stats = {
-        totalClients: parseInt(data.clients.total_clients || 0),
-        activeClients: parseInt(data.clients.active_clients || 0),
-        withCoordinates: parseInt(data.clients.clients_with_location || 0),
-        uniquePincodes: parseInt(data.clients.unique_pincodes || 0),
-        totalUsers: parseInt(data.users.total_users || 0),
-        totalLogs: parseInt(data.locations.total_logs || 0),
-        coordinatesCoverage: data.clients.total_clients > 0
-          ? ((data.clients.clients_with_location / data.clients.total_clients) * 100).toFixed(1)
-          : 0,
-      };
+  totalClients: data.stats.totalClients,
+  activeClients: data.stats.activeClients,
+  withCoordinates: data.stats.withCoordinates,
+  uniquePincodes: data.stats.uniquePincodes,
+  totalUsers: data.stats.totalUsers,
+  totalLogs: data.stats.totalLogs,
+  coordinatesCoverage: data.stats.coordinatesCoverage,
+  inactiveClients: data.stats.inactiveClients,
+  meetingsLastMonth: data.stats.meetingsLastMonth,
+  expensesLastMonth: data.stats.expensesLastMonth,
+  newClientsLastMonth: data.stats.newClientsLastMonth,
+};
 
-      const trends = calculateTrends(allClients);
-      const distribution = calculateDistribution(allClients);
-      setAnalyticsData({ stats, trends, distribution });
+const activeTodayCount = Object.values(userClockIns || {}).filter(
+  (u) => u.clocked_in
+).length;
+
+const inactiveUsers = stats.totalUsers - activeTodayCount;
+
+const enrichedStats = {
+  ...stats,
+  activeUsersToday: activeTodayCount,
+  inactiveUsers,
+};
+
+
+
+      setAnalyticsData({
+  stats: data.stats,
+  trends: data.trends,
+  distribution: data.distribution,
+  leaderboard: data.leaderboard,
+});
+
+
     } catch (err) {
       console.error("Analytics error:", err);
       setError("Failed to load analytics.");
@@ -730,10 +751,17 @@ const Dashboard = () => {
           </div>
         ) : currentPage === "analytics" ? (
           <AnalyticsPage
-            analyticsData={analyticsData}
-            syncStatus={syncStatus}
-            onRefresh={fetchData}
-          />
+  analyticsData={analyticsData}
+  syncStatus={syncStatus}
+  onRefresh={fetchData}
+  onGoToClients={() => setCurrentPage("clients")}
+  onGoToUsers={() => setCurrentPage("users")}
+  onSelectUser={(user) => {
+    setSelectedUser(user);
+    setCurrentPage("users");
+  }}
+/>
+
         ) : currentPage === "clients" ? (
           <ClientsPage
             clients={clients}
