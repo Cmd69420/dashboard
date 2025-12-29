@@ -22,7 +22,7 @@ import UserManagementPage from "./UserManagementPage";
 import ClientServicesPage from './ClientServicesPage';
 import ClientServicesModal from './ClientServicesModal';
 
-const API_BASE_URL = "https://geo-track-1.onrender.com";
+const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
 const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState("analytics");
