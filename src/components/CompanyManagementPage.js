@@ -90,7 +90,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/companies`, {
+      const response = await fetch(`${API_BASE_URL}/super-admin/companies`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -115,10 +115,10 @@ const CompanyManagementPage = ({ onRefresh }) => {
 
     try {
       const [usersRes, clientsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/companies/${companyId}/users`, {
+        fetch(`${API_BASE_URL}/super-admin/companies/${companyId}/users`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE_URL}/companies/${companyId}/clients`, {
+        fetch(`${API_BASE_URL}/super-admin/companies/${companyId}/clients`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
