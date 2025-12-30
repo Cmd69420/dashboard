@@ -162,9 +162,9 @@ const CompanyManagementPage = ({ onRefresh }) => {
   // Filter companies
   const filteredCompanies = companies.filter((company) => {
     const matchesSearch =
-      company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.subdomain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contact_email?.toLowerCase().includes(searchTerm.toLowerCase());
+  company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  company.subdomain?.toLowerCase().includes(searchTerm.toLowerCase());
+
 
     const matchesStatus =
       statusFilter === "all" ||
@@ -734,20 +734,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
                           <Globe className="w-4 h-4" style={{ color: "#667eea" }} />
                           <span style={{ color: "#64748b" }}>@{company.subdomain}</span>
                         </div>
-                        {company.contact_email && (
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4" style={{ color: "#f093fb" }} />
-                            <span style={{ color: "#64748b" }} className="truncate">
-                              {company.contact_email}
-                            </span>
-                          </div>
-                        )}
-                        {company.contact_phone && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-4 h-4" style={{ color: "#43e97b" }} />
-                            <span style={{ color: "#64748b" }}>{company.contact_phone}</span>
-                          </div>
-                        )}
+                      
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" style={{ color: "#94a3b8" }} />
                           <span style={{ color: "#64748b" }}>
