@@ -12,6 +12,7 @@ import UserExpensesPage from "./UserExpensesPage";
 import UserManagementPage from "./UserManagementPage";
 import ClientServicesPage from './ClientServicesPage';
 import ClientServicesModal from './ClientServicesModal';
+import CompanyManagementPage from './CompanyManagementPage';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
@@ -424,6 +425,9 @@ const Dashboard = () => {
     { id: "clientServices", label: "Client Services", icon: Package },
     { id: "users", label: "Team Activity", icon: Users },
     { id: "userManagement", label: "User Management", icon: Settings },
+    ...(isSuperAdmin) ? [
+      { id: "companyManagement", label: "Company Management", icon: Building2 },
+    ] : []
   ];
 
   return (
@@ -574,6 +578,7 @@ const Dashboard = () => {
               {currentPage === "analytics" && "Dashboard Overview"}
               {currentPage === "clients" && "Client Management"}
               {currentPage === "clientServices" && "Client Services"}
+              {currentPage === "companyManagement" && "Company Management"}
               {currentPage === "users" && "Team Activity"}
               {currentPage === "userManagement" && "User Management"}
               {currentPage === "userLogs" && "Location Tracking"}
@@ -584,6 +589,7 @@ const Dashboard = () => {
               {currentPage === "analytics" && "Monitor your business performance"}
               {currentPage === "clients" && "View and manage all your clients"}
               {currentPage === "clientServices" && "Manage all client service subscriptions"}
+              {currentPage === "companyManagement" && "Manage company settings and subscriptions"}
               {currentPage === "users" && "Track your team members"}
               {currentPage === "userManagement" && "Add, edit, and manage user accounts"}
               {currentPage === "userLogs" && "Detailed location history"}
@@ -787,6 +793,10 @@ const Dashboard = () => {
               fetchUserExpensesDetail(page, expensesPagination.limit)
             }
           />
+        ) : currentPage === "companyManagement" ? (  // ← ADD THIS CASE
+  <CompanyManagementPage
+    onRefresh={fetchData}
+  />
         ) : null}
 
         {selectedClientForServices && (
