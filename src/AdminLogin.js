@@ -19,24 +19,60 @@ export default function AdminLogin() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) throw new Error("Invalid email or password");
-
       const data = await res.json();
-      const { token } = data;
 
-      // Decode token to ensure user is admin
+      if (!res.ok) {
+        // Handle new error types from multi-company backend
+        if (data.error === "NoCompanyAssigned") {
+          throw new Error("Your account is not assigned to any company. Contact super admin.");
+        }
+        if (data.error === "CompanyInactive") {
+          throw new Error("Your company account is inactive. Contact super admin.");
+        }
+        throw new Error(data.message || "Invalid email or password");
+      }
+
+      const { token, user } = data;
+
+      // Decode token to check admin status and company info
       const payload = JSON.parse(atob(token.split(".")[1]));
-      if (!payload.isAdmin) {
+      
+      // ✅ NEW: Check if user is admin OR super admin
+      if (!payload.isAdmin && !payload.isSuperAdmin) {
         throw new Error("You are not authorized to access the admin dashboard.");
       }
 
+      // ✅ NEW: Store additional company context
       localStorage.setItem("token", token);
+      localStorage.setItem("userEmail", user.email);
+      localStorage.setItem("userName", user.fullName || "");
+      localStorage.setItem("isAdmin", user.isAdmin ? "true" : "false");
+      localStorage.setItem("isSuperAdmin", user.isSuperAdmin ? "true" : "false");
+      localStorage.setItem("companyId", user.companyId || "");
+      localStorage.setItem("companyName", user.companyName || "");
+      localStorage.setItem("companySubdomain", user.companySubdomain || "");
+
+      console.log("✅ Login successful:", {
+        email: user.email,
+        isAdmin: user.isAdmin,
+        isSuperAdmin: user.isSuperAdmin,
+        companyId: user.companyId,
+        companyName: user.companyName
+      });
+
       window.location.href = "/dashboard";
     } catch (err) {
       setError(err.message);
+      console.error("❌ Login error:", err);
     }
 
     setLoading(false);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleLogin();
+    }
   };
 
   return (
@@ -47,7 +83,7 @@ export default function AdminLogin() {
         </h1>
 
         {error && (
-          <div className="bg-red-100 text-red-700 text-sm p-2 mb-3 rounded">
+          <div className="bg-red-100 text-red-700 text-sm p-3 mb-4 rounded">
             {error}
           </div>
         )}
@@ -58,6 +94,8 @@ export default function AdminLogin() {
           className="w-full p-2 border rounded mb-3"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={loading}
         />
 
         <input
@@ -66,15 +104,21 @@ export default function AdminLogin() {
           className="w-full p-2 border rounded mb-6"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={loading}
         />
 
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Signing in..." : "Login"}
         </button>
+
+        <div className="mt-4 text-xs text-gray-500 text-center">
+          <p>Multi-company system • Company assignment required</p>
+        </div>
       </div>
     </div>
   );

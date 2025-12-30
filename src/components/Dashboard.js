@@ -1,16 +1,7 @@
-// Dashboard.js - Updated with User Management
+// Dashboard.js - Multi-Company Version
 import React, { useState, useEffect } from "react";
-import { HardDrive } from "lucide-react";
-import { Package,
-  TrendingUp, 
-  FileText, 
-  Users, 
-  LogOut,
-  Home,
-  RefreshCw,
-  Settings,
-} from "lucide-react";
-import { Sparkles, Phone } from "lucide-react";
+import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown } from "lucide-react";
+
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
 import ClientsPage from "./ClientsPage";
@@ -28,8 +19,16 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState("analytics");
   const [analyticsData, setAnalyticsData] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-
   const [profileOpen, setProfileOpen] = useState(false);
+
+  // ✅ NEW: Company context state
+  const [userCompany, setUserCompany] = useState({
+    id: "",
+    name: "",
+    subdomain: "",
+  });
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // clients + pagination
   const [clients, setClients] = useState([]);
@@ -55,15 +54,13 @@ const Dashboard = () => {
     page: 1, limit: 20, total: 0, totalPages: 1 
   });
 
-  //clientservicestate
   const [selectedClientForServices, setSelectedClientForServices] = useState(null);
-
   const [selectedUser, setSelectedUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // auth check
+  // ✅ NEW: Auth check with company context
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -73,20 +70,43 @@ const Dashboard = () => {
 
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
-      if (!payload?.isAdmin) {
+      
+      // Check if user is admin or super admin
+      if (!payload?.isAdmin && !payload?.isSuperAdmin) {
         alert("Unauthorized – Admin access only");
         localStorage.removeItem("token");
         window.location.href = "/login";
+        return;
       }
+
       setCurrentUserId(payload.id);
+      setIsAdmin(payload.isAdmin || false);
+      setIsSuperAdmin(payload.isSuperAdmin || false);
+
+      // ✅ NEW: Set company context
+      setUserCompany({
+        id: payload.companyId || localStorage.getItem("companyId") || "",
+        name: localStorage.getItem("companyName") || "No Company",
+        subdomain: localStorage.getItem("companySubdomain") || "",
+      });
+
+      console.log("🔐 Dashboard loaded:", {
+        userId: payload.id,
+        isAdmin: payload.isAdmin,
+        isSuperAdmin: payload.isSuperAdmin,
+        companyId: payload.companyId,
+        companyName: localStorage.getItem("companyName")
+      });
+
     } catch (e) {
+      console.error("❌ Token parse error:", e);
       alert("Invalid token. Please login again.");
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
   }, []);
 
-  // ➕ OUTSIDE CLICK CLOSE
+  // Outside click close
   useEffect(() => {
     const handler = (e) => {
       if (profileOpen && !e.target.closest(".profile-dropdown")) {
@@ -99,13 +119,12 @@ const Dashboard = () => {
 
   const token = localStorage.getItem("token");
 
-  // main fetch whenever page or selectedUser changes
+  // Main fetch whenever page or selectedUser changes
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, selectedUser, clientsPage]);
 
-  // refresh users frequently when on users or user management page
+  // Refresh users frequently when on users or user management page
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentPage === "users" || currentPage === "userManagement") {
@@ -140,13 +159,21 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error("Error fetching data:", err);
-      setError(err.message || "Error");
+      
+      // ✅ NEW: Handle session invalidation
+      if (err.message?.includes("SESSION_INVALIDATED") || err.message?.includes("401")) {
+        localStorage.clear();
+        window.location.href = "/login";
+        return;
+      }
+      
+      setError(err.message || "Error loading data");
     }
 
     setLoading(false);
   };
 
-  // [All fetch functions - keeping them the same]
+  // [Keep all your existing fetch functions - they work with the new backend automatically]
   const fetchAnalytics = async () => {
     try {
       const analyticsRes = await fetch(`${API_BASE_URL}/admin/analytics`, {
@@ -159,43 +186,13 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const clientsData = await clientsRes.json();
-      const allClients = clientsData.clients || [];
-
-      const stats = {
-  totalClients: data.stats.totalClients,
-  activeClients: data.stats.activeClients,
-  withCoordinates: data.stats.withCoordinates,
-  uniquePincodes: data.stats.uniquePincodes,
-  totalUsers: data.stats.totalUsers,
-  totalLogs: data.stats.totalLogs,
-  coordinatesCoverage: data.stats.coordinatesCoverage,
-  inactiveClients: data.stats.inactiveClients,
-  meetingsLastMonth: data.stats.meetingsLastMonth,
-  expensesLastMonth: data.stats.expensesLastMonth,
-  newClientsLastMonth: data.stats.newClientsLastMonth,
-};
-
-const activeTodayCount = Object.values(userClockIns || {}).filter(
-  (u) => u.clocked_in
-).length;
-
-const inactiveUsers = stats.totalUsers - activeTodayCount;
-
-const enrichedStats = {
-  ...stats,
-  activeUsersToday: activeTodayCount,
-  inactiveUsers,
-};
-
-
 
       setAnalyticsData({
-  stats: data.stats,
-  trends: data.trends,
-  distribution: data.distribution,
-  leaderboard: data.leaderboard,
-});
-
+        stats: data.stats,
+        trends: data.trends,
+        distribution: data.distribution,
+        leaderboard: data.leaderboard,
+      });
 
     } catch (err) {
       console.error("Analytics error:", err);
@@ -232,7 +229,6 @@ const enrichedStats = {
       const fetchedUsers = data.users || [];
       setUsers(fetchedUsers);
 
-      // Only fetch clock status if we're on the users page (not user management)
       if (currentPage === "users") {
         const clockStatusMap = {};
         for (const user of fetchedUsers) {
@@ -401,42 +397,6 @@ const enrichedStats = {
     }
   };
 
-  const calculateTrends = (clients) => {
-    const monthlyData = {};
-    clients.forEach((client) => {
-      const date = new Date(client.created_at);
-      if (isNaN(date)) return;
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { month: monthKey, clients: 0, active: 0, withLocation: 0 };
-      }
-      monthlyData[monthKey].clients++;
-      if (client.status === "active") monthlyData[monthKey].active++;
-      if (client.latitude && client.longitude) monthlyData[monthKey].withLocation++;
-    });
-    return Object.values(monthlyData)
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-6)
-      .map((data) => ({
-        month: new Date(data.month + "-01").toLocaleDateString("en-US", { month: "short" }),
-        clients: data.clients,
-        active: data.active,
-        withLocation: data.withLocation,
-      }));
-  };
-
-  const calculateDistribution = (clients) => {
-    const pincodeCount = {};
-    clients.forEach((client) => {
-      const pincode = client.pincode || "Unknown";
-      pincodeCount[pincode] = (pincodeCount[pincode] || 0) + 1;
-    });
-    return Object.entries(pincodeCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, value]) => ({ name: `Pin: ${name}`, value }));
-  };
-
   const handleViewUserLogs = (user) => {
     setSelectedUser(user);
     setCurrentPage("userLogs");
@@ -454,26 +414,24 @@ const enrichedStats = {
     setCurrentPage("userExpenses");
   };
 
-  const navItems = [
-  { id: "analytics", label: "Dashboard", icon: Home },
-  { id: "clients", label: "Clients", icon: FileText },
-  { id: "clientServices", label: "Client Services", icon: Package }, // NEW
-  { id: "users", label: "Team Activity", icon: Users },
-  { id: "userManagement", label: "User Management", icon: Settings },
-];
-
   const handleEditClientServices = (client) => {
-  setSelectedClientForServices(client);
-};
+    setSelectedClientForServices(client);
+  };
+
+  const navItems = [
+    { id: "analytics", label: "Dashboard", icon: Home },
+    { id: "clients", label: "Clients", icon: FileText },
+    { id: "clientServices", label: "Client Services", icon: Package },
+    { id: "users", label: "Team Activity", icon: Users },
+    { id: "userManagement", label: "User Management", icon: Settings },
+  ];
 
   return (
     <div className="min-h-screen" style={{ background: '#ecf0f3' }}>
-      {/* Neumorphic Sidebar */}
+      {/* Sidebar */}
       <aside 
         className="fixed top-0 left-0 h-full w-72 p-6"
-        style={{ 
-          background: '#ecf0f3',
-        }}
+        style={{ background: '#ecf0f3' }}
       >
         {/* Logo */}
         <div 
@@ -486,6 +444,53 @@ const enrichedStats = {
           <img src="/logo.png" alt="GeoTrack" className="w-12 h-12 object-contain" />
           <span className="text-2xl font-bold text-white">GeoTrack</span>
         </div>
+
+        {/* ✅ NEW: Company Context Indicator */}
+        {!isSuperAdmin && userCompany.name && (
+          <div 
+            className="mb-6 p-4 rounded-2xl"
+            style={{
+              background: '#e6eaf0',
+              boxShadow: 'inset 4px 4px 8px #c5c8cf, inset -4px -4px 8px #ffffff',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-4 h-4" style={{ color: '#667eea' }} />
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>
+                Your Company
+              </span>
+            </div>
+            <p className="text-sm font-bold truncate" style={{ color: '#1e293b' }}>
+              {userCompany.name}
+            </p>
+            {userCompany.subdomain && (
+              <p className="text-xs" style={{ color: '#64748b' }}>
+                @{userCompany.subdomain}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ✅ NEW: Super Admin Indicator */}
+        {isSuperAdmin && (
+          <div 
+            className="mb-6 p-4 rounded-2xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(250,112,154,0.15), rgba(254,225,64,0.15))',
+              border: '2px solid rgba(250,112,154,0.3)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4" style={{ color: '#fa709a' }} />
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#fa709a' }}>
+                Super Admin
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: '#64748b' }}>
+              All companies access
+            </p>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="space-y-4">
@@ -539,12 +544,8 @@ const enrichedStats = {
                 Storage Used
               </span>
             </div>
-            <span className="text-xs font-semibold text-slate-500">
-                62%
-            </span>
+            <span className="text-xs font-semibold text-slate-500">62%</span>
           </div>
-
-          {/* Progress Bar */}
           <div
             className="w-full h-2 rounded-full overflow-hidden"
             style={{
@@ -560,10 +561,7 @@ const enrichedStats = {
               }}
             />
           </div>
-
-          <p className="mt-2 text-xs text-slate-500">
-            6.2 GB of 10 GB used
-          </p>
+          <p className="mt-2 text-xs text-slate-500">6.2 GB of 10 GB used</p>
         </div>
       </aside>
 
@@ -608,7 +606,7 @@ const enrichedStats = {
               </button>
             )}
 
-            {/* PROFILE DROPDOWN */}
+            {/* Profile Dropdown */}
             <div className="relative profile-dropdown">
               <button
                 onClick={() => setProfileOpen(p => !p)}
@@ -632,58 +630,17 @@ const enrichedStats = {
                   {/* Header */}
                   <div className="mb-4">
                     <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                      Admin Account
+                      {isSuperAdmin ? "Super Admin Account" : "Admin Account"}
                     </p>
-                    <p className="text-xs" style={{ color: '#64748b' }}>
-                      Billing & access
+                    <p className="text-xs truncate" style={{ color: '#64748b' }}>
+                      {localStorage.getItem("userEmail") || ""}
                     </p>
+                    {!isSuperAdmin && userCompany.name && (
+                      <p className="text-xs mt-1" style={{ color: '#667eea' }}>
+                        {userCompany.name}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Upgrade */}
-                  <button
-                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 transition-all hover:scale-[1.02]"
-                    style={{
-                      background: '#ecf0f3',
-                      boxShadow:
-                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
-                    }}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{
-                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                        boxShadow: '3px 3px 6px rgba(102,126,234,.4)',
-                      }}
-                    >
-                      <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700">
-                      Upgrade Plan
-                    </span>
-                  </button>
-
-                  {/* Contact Sales */}
-                  <button
-                    className="w-full flex items-center gap-3 p-3 rounded-xl mb-3 transition-all hover:scale-[1.02]"
-                    style={{
-                      background: '#ecf0f3',
-                      boxShadow:
-                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
-                    }}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{
-                        background: '#e6eaf0',
-                        boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
-                      }}
-                    >
-                      <Phone className="w-4 h-4 text-slate-600" />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700">
-                      Contact Sales
-                    </span>
-                  </button>
 
                   {/* Divider */}
                   <div className="my-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
@@ -691,7 +648,7 @@ const enrichedStats = {
                   {/* Logout */}
                   <button
                     onClick={() => {
-                      localStorage.removeItem("token");
+                      localStorage.clear();
                       window.location.href = "/login";
                     }}
                     className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
@@ -710,9 +667,7 @@ const enrichedStats = {
                     >
                       <LogOut className="w-4 h-4 text-red-600" />
                     </div>
-                    <span className="text-sm font-semibold text-red-600">
-                      Logout
-                    </span>
+                    <span className="text-sm font-semibold text-red-600">Logout</span>
                   </button>
                 </div>
               )}
@@ -751,17 +706,16 @@ const enrichedStats = {
           </div>
         ) : currentPage === "analytics" ? (
           <AnalyticsPage
-  analyticsData={analyticsData}
-  syncStatus={syncStatus}
-  onRefresh={fetchData}
-  onGoToClients={() => setCurrentPage("clients")}
-  onGoToUsers={() => setCurrentPage("users")}
-  onSelectUser={(user) => {
-    setSelectedUser(user);
-    setCurrentPage("users");
-  }}
-/>
-
+            analyticsData={analyticsData}
+            syncStatus={syncStatus}
+            onRefresh={fetchData}
+            onGoToClients={() => setCurrentPage("clients")}
+            onGoToUsers={() => setCurrentPage("users")}
+            onSelectUser={(user) => {
+              setSelectedUser(user);
+              setCurrentPage("users");
+            }}
+          />
         ) : currentPage === "clients" ? (
           <ClientsPage
             clients={clients}
@@ -787,7 +741,7 @@ const enrichedStats = {
             onViewLogs={handleViewUserLogs}
             onViewMeetings={handleViewUserMeetings}
             onViewExpenses={handleViewUserExpenses}
-                      />
+          />
         ) : currentPage === "userManagement" ? (
           <UserManagementPage
             users={users}
@@ -835,11 +789,11 @@ const enrichedStats = {
           />
         ) : null}
 
-          {selectedClientForServices && (
-            <ClientServicesModal
-              client={selectedClientForServices}
-              onClose={() => setSelectedClientForServices(null)}
-            />
+        {selectedClientForServices && (
+          <ClientServicesModal
+            client={selectedClientForServices}
+            onClose={() => setSelectedClientForServices(null)}
+          />
         )}
       </main>
     </div>
