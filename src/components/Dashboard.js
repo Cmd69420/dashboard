@@ -1,16 +1,18 @@
 // Dashboard.js - Updated with User Management
-import React, { useState, useEffect } from "react";
-import { HardDrive } from "lucide-react";
-import { Package,
-  TrendingUp, 
-  FileText, 
-  Users, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  FileText,
+  HardDrive,
+  Package,
+  TrendingUp,
+  Users,
   LogOut,
   Home,
   RefreshCw,
   Settings,
+  Sparkles,
+  Phone,
 } from "lucide-react";
-import { Sparkles, Phone } from "lucide-react";
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
 import ClientsPage from "./ClientsPage";
@@ -21,6 +23,8 @@ import UserExpensesPage from "./UserExpensesPage";
 import UserManagementPage from "./UserManagementPage";
 import ClientServicesPage from './ClientServicesPage';
 import ClientServicesModal from './ClientServicesModal';
+import BillingPlansPage from "./BillingPlansPage";
+import BillingHistoryPage from "./BillingHistoryPage";
 
 const API_BASE_URL = "https://geo-track-1.onrender.com";
 
@@ -40,12 +44,12 @@ const Dashboard = () => {
 
   // users
   const [users, setUsers] = useState([]);
-  const [userExpenses, setUserExpenses] = useState({});
-  const [userClockIns, setUserClockIns] = useState({});
-  const [userMeetings, setUserMeetings] = useState({});
+  const [userExpenses] = useState({});
+  const [userClockIns] = useState({});
+  const [userMeetings] = useState({});
 
   // user detail pages
-  const [locationLogs, setLocationLogs] = useState([]);
+  const [locationLogs] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [meetingsPagination, setMeetingsPagination] = useState({ 
     page: 1, limit: 20, total: 0, totalPages: 1 
@@ -63,21 +67,37 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [billingOpen, setBillingOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
+
+
+  // auto-open Billing menu when a billing page is active
+  useEffect(() => {
+    if (currentPage === "billingPlans" || currentPage === "billingHistory") {
+      setBillingOpen(true);
+    }
+  }, [currentPage]);
+
   // auth check
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const storedToken = localStorage.getItem("token");
+
+    if (!storedToken) {
       window.location.href = "/login";
       return;
     }
 
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = JSON.parse(atob(storedToken.split(".")[1]));
+
       if (!payload?.isAdmin) {
         alert("Unauthorized – Admin access only");
         localStorage.removeItem("token");
         window.location.href = "/login";
+        return;
       }
+
+      setToken(storedToken);          // ✅ CRITICAL
       setCurrentUserId(payload.id);
     } catch (e) {
       alert("Invalid token. Please login again.");
@@ -97,238 +117,210 @@ const Dashboard = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, [profileOpen]);
 
-  const token = localStorage.getItem("token");
-
-  // main fetch whenever page or selectedUser changes
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, selectedUser, clientsPage]);
-
-  // refresh users frequently when on users or user management page
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (currentPage === "users" || currentPage === "userManagement") {
-        fetchUsers();
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [currentPage]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      if (currentPage === "analytics") {
-        await Promise.all([fetchAnalytics(), fetchSyncStatus()]);
-      } else if (currentPage === "clients") {
-        await fetchClients(clientsPage, CLIENTS_PER_PAGE);
-      } else if (currentPage === "users") {
-        await fetchUsers();
-        await fetchAllUserExpenses();
-        await fetchAllUserMeetingsSummary();
-      } else if (currentPage === "userManagement") {
-        await fetchUsers();
-      } else if (currentPage === "userLogs") {
-        await fetchUserLogs();
-      } else if (currentPage === "userMeetings") {
-        await fetchUserMeetingsDetail(meetingsPagination.page, meetingsPagination.limit);
-      } else if (currentPage === "userExpenses") {
-        await fetchUserExpensesDetail(expensesPagination.page, expensesPagination.limit);
-      }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err.message || "Error");
-    }
-
-    setLoading(false);
-  };
+  const [token, setToken] = useState(null);
 
   // [All fetch functions - keeping them the same]
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
+    if (!token) return;
     try {
       const analyticsRes = await fetch(`${API_BASE_URL}/admin/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!analyticsRes.ok) throw new Error("Failed to fetch analytics");
+
+      if (!analyticsRes.ok) {
+        throw new Error("Failed to fetch analytics");
+      }
+
       const data = await analyticsRes.json();
 
-      const clientsRes = await fetch(`${API_BASE_URL}/admin/clients?limit=10000`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const clientsData = await clientsRes.json();
-      const allClients = clientsData.clients || [];
+      const clients = data?.clients ?? {};
+      const users = data?.users ?? {};
+      const locations = data?.locations ?? {};
+
+      const totalClients = Number(clients.total_clients ?? 0);
+      const withLocation = Number(clients.clients_with_location ?? 0);
 
       const stats = {
-        totalClients: parseInt(data.clients.total_clients || 0),
-        activeClients: parseInt(data.clients.active_clients || 0),
-        withCoordinates: parseInt(data.clients.clients_with_location || 0),
-        uniquePincodes: parseInt(data.clients.unique_pincodes || 0),
-        totalUsers: parseInt(data.users.total_users || 0),
-        totalLogs: parseInt(data.locations.total_logs || 0),
-        coordinatesCoverage: data.clients.total_clients > 0
-          ? ((data.clients.clients_with_location / data.clients.total_clients) * 100).toFixed(1)
-          : 0,
+        totalClients,
+        activeClients: Number(clients.active_clients ?? 0),
+        withCoordinates: withLocation,
+        uniquePincodes: Number(clients.unique_pincodes ?? 0),
+        totalUsers: Number(users.total_users ?? 0),
+        totalLogs: Number(locations.total_logs ?? 0),
+        coordinatesCoverage:
+          totalClients > 0
+            ? ((withLocation / totalClients) * 100).toFixed(1)
+            : "0.0",
       };
+
+      // 🔹 Fetch ALL clients for analytics calculations
+      const clientsRes = await fetch(
+        `${API_BASE_URL}/admin/clients?limit=10000`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!clientsRes.ok) {
+        throw new Error("Failed to fetch clients for analytics");
+      }
+
+      const clientsData = await clientsRes.json();
+
+      console.log("Clients analytics response:", clientsData);
+
+      if (!Array.isArray(clientsData.clients)) {
+        throw new Error("Clients list missing or invalid");
+      }
+
+      const allClients = clientsData.clients;
 
       const trends = calculateTrends(allClients);
       const distribution = calculateDistribution(allClients);
+
       setAnalyticsData({ stats, trends, distribution });
+      setError(null); // clear previous errors
     } catch (err) {
       console.error("Analytics error:", err);
       setError("Failed to load analytics.");
     }
-  };
+  }, [token]);
 
-  const fetchClients = async (page = 1, limit = CLIENTS_PER_PAGE) => {
+  const fetchClients = useCallback(
+    async (page = 1, limit = CLIENTS_PER_PAGE) => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/admin/clients?page=${page}&limit=${limit}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch clients");
+
+        const data = await response.json();
+
+        setClients(data.clients || []);
+
+        if (data.pagination) {
+          setClientsPage(data.pagination.page || page);
+          setClientsTotalPages(data.pagination.totalPages || 1);
+          setClientsTotal(
+            data.pagination.total || (data.clients || []).length
+          );
+        }
+      } catch (err) {
+        console.error("Clients error:", err);
+        setError("Failed to load clients.");
+      }
+    },[token]);
+
+
+  // ✅ fetchUsers FIRST
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/clients?page=${page}&limit=${limit}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/users?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Failed to fetch clients");
-      const data = await response.json();
-      setClients(data.clients || []);
-      if (data.pagination) {
-        setClientsPage(data.pagination.page || page);
-        setClientsTotalPages(data.pagination.totalPages || 1);
-        setClientsTotal(data.pagination.total || (data.clients || []).length);
-      }
-    } catch (err) {
-      console.error("Clients error:", err);
-      setError("Failed to load clients.");
-    }
-  };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/users?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch users");
-      const data = await response.json();
-      const fetchedUsers = data.users || [];
-      setUsers(fetchedUsers);
+      if (!res.ok) throw new Error("Failed to fetch users");
 
-      // Only fetch clock status if we're on the users page (not user management)
-      if (currentPage === "users") {
-        const clockStatusMap = {};
-        for (const user of fetchedUsers) {
-          try {
-            const res = await fetch(`${API_BASE_URL}/admin/clock-status/${user.id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-              const result = await res.json();
-              clockStatusMap[user.id] = {
-                clocked_in: result.clocked_in,
-                last_seen: result.last_seen,
-              };
-            }
-          } catch (err) {
-            console.error(`Clock-status fetch failed → User: ${user.id}`, err);
-          }
-        }
-        setUserClockIns(clockStatusMap);
-
-        const meetingsMap = {};
-        for (const user of fetchedUsers) {
-          try {
-            const res = await fetch(`${API_BASE_URL}/admin/user-meetings/${user.id}?limit=5`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-              const result = await res.json();
-              const mList = result.meetings || [];
-              meetingsMap[user.id] = {
-                total: mList.length,
-                completed: mList.filter((m) => m.status === "COMPLETED").length || 0,
-                inProgress: mList.filter((m) => m.status === "IN_PROGRESS").length || 0,
-              };
-            }
-          } catch (err) {
-            meetingsMap[user.id] = { total: 0, completed: 0, inProgress: 0 };
-          }
-        }
-        setUserMeetings(meetingsMap);
-      }
+      const data = await res.json();
+      setUsers(data.users || []);
     } catch (err) {
       console.error("Users error:", err);
-      setError("Failed to load users.");
     }
-  };
+  }, [token]);
 
-  const fetchAllUserExpenses = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/expenses/summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        setUserExpenses({});
-        return;
-      }
-      const data = await response.json();
-      const map = {};
-      (data.summary || []).forEach((row) => {
-        map[row.id] = Number(row.total_expense) || 0;
-      });
-      setUserExpenses(map);
-    } catch (err) {
-      console.error("Failed to fetch expenses:", err);
-    }
-  };
-
-  const fetchAllUserMeetingsSummary = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/meetings/summary/all`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      const map = {};
-      (data.summary || []).forEach((row) => {
-        map[row.id] = {
-          total: Number(row.total_meetings) || 0,
-          completed: Number(row.completed_meetings) || 0,
-          inProgress: Number(row.in_progress_meetings) || 0,
-        };
-      });
-      setUserMeetings((prev) => ({ ...prev, ...map }));
-    } catch (err) {
-      console.error("Failed to fetch meetings summary:", err);
-    }
-  };
-
-  const fetchSyncStatus = async () => {
+  const fetchSyncStatus = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/sync/latest`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (!response.ok) throw new Error("Failed to fetch sync status");
+
       const data = await response.json();
       setSyncStatus(data.lastSync);
     } catch (err) {
       console.error("Sync status error:", err);
       setSyncStatus(null);
     }
-  };
+  }, [token]);
 
-  const fetchUserLogs = async () => {
-    if (!selectedUser?.id) return;
+  // ✅ fetchData SECOND
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/admin/location-logs/${selectedUser.id}?limit=200`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!response.ok) throw new Error("Failed to fetch location logs");
-      const data = await response.json();
-      setLocationLogs(data.logs || []);
-    } catch (err) {
-      console.error("Location logs error:", err);
-      setLocationLogs([]);
+      if (currentPage === "analytics") {
+        await Promise.all([fetchAnalytics(), fetchSyncStatus()]);
+      } 
+      else if (currentPage === "clients") {
+        await fetchClients(clientsPage, CLIENTS_PER_PAGE); // ✅ ADD THIS
+      }
+      else if (currentPage === "users") {
+        await fetchUsers();
+      }
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token, currentPage,fetchAnalytics,fetchSyncStatus,fetchUsers,fetchClients,clientsPage]);
+
+  // ✅ effect #1
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (currentPage !== "users" && currentPage !== "userManagement") return;
+
+    const interval = setInterval(() => {
+      fetchUsers();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentPage, fetchUsers]);
+
+  // const fetchAllUserExpenses = async () => {
+  //   try {
+  //     const response = await fetch(`${API_BASE_URL}/admin/expenses/summary`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     if (!response.ok) {
+  //       setUserExpenses({});
+  //       return;
+  //     }
+  //     const data = await response.json();
+  //     const map = {};
+  //     (data.summary || []).forEach((row) => {
+  //       map[row.id] = Number(row.total_expense) || 0;
+  //     });
+  //     setUserExpenses(map);
+  //   } catch (err) {
+  //     console.error("Failed to fetch expenses:", err);
+  //   }
+  // };
+
+  // const fetchAllUserMeetingsSummary = async () => {
+  //   try {
+  //     const response = await fetch(`${API_BASE_URL}/admin/meetings/summary/all`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     if (!response.ok) return;
+  //     const data = await response.json();
+  //     const map = {};
+  //     (data.summary || []).forEach((row) => {
+  //       map[row.id] = {
+  //         total: Number(row.total_meetings) || 0,
+  //         completed: Number(row.completed_meetings) || 0,
+  //         inProgress: Number(row.in_progress_meetings) || 0,
+  //       };
+  //     });
+  //     setUserMeetings((prev) => ({ ...prev, ...map }));
+  //   } catch (err) {
+  //     console.error("Failed to fetch meetings summary:", err);
+  //   }
+  // };
 
   const fetchUserMeetingsDetail = async (page = 1, limit = 20) => {
     if (!selectedUser?.id) return;
@@ -503,6 +495,57 @@ const Dashboard = () => {
           })}
         </nav>
 
+        {/* Pricing & Billing */}
+        <div className="mt-4">
+          <button
+            onClick={() => setBillingOpen(prev => !prev)}
+            className="w-full p-5 rounded-2xl flex items-center gap-4"
+            style={{
+              background: '#e6eaf0',
+              boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+            }}
+          >
+            <Package className="w-6 h-6 text-slate-600" />
+            <span className="font-semibold text-slate-700">
+              Pricing & Billing
+            </span>
+          </button>
+
+          {billingOpen && (
+            <div className="ml-6 mt-3 space-y-2">
+              <button
+                onClick={() => setCurrentPage("billingPlans")}
+                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
+                style={{
+                  background:
+                    currentPage === "billingPlans"
+                      ? "#dfe6f3"
+                      : "#ecf0f3",
+                  fontWeight: currentPage === "billingPlans" ? "600" : "400",
+                }}
+              >
+                • Plans
+              </button>
+
+              <button
+                onClick={() => setCurrentPage("billingHistory")}
+                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
+                style={{
+                  background:
+                    currentPage === "billingHistory"
+                      ? "#dfe6f3"
+                      : "#ecf0f3",
+                  fontWeight: currentPage === "billingHistory" ? "600" : "400",
+                }}
+              >
+                • History
+              </button>
+            </div>
+          )}
+        </div>
+
+
+
         {/* Sidebar Metric */}
         <div
           className="absolute bottom-8 left-6 right-6 p-5 rounded-2xl"
@@ -560,6 +603,8 @@ const Dashboard = () => {
               {currentPage === "userLogs" && "Location Tracking"}
               {currentPage === "userMeetings" && "Meeting History"}
               {currentPage === "userExpenses" && "Expense Reports"}
+              {currentPage === "billingPlans" && "Pricing Plans"}
+              {currentPage === "billingHistory" && "Billing History"}
             </h1>
             <p style={{ color: '#64748b' }}>
               {currentPage === "analytics" && "Monitor your business performance"}
@@ -570,6 +615,8 @@ const Dashboard = () => {
               {currentPage === "userLogs" && "Detailed location history"}
               {currentPage === "userMeetings" && "Complete meeting logs"}
               {currentPage === "userExpenses" && "Track and review expenses"}
+              {currentPage === "billingPlans" && "Manage and view all available subscription plans"}
+              {currentPage === "billingHistory" && "View your past billing and invoices"}
             </p>
           </div>
 
@@ -670,7 +717,14 @@ const Dashboard = () => {
                   {/* Logout */}
                   <button
                     onClick={() => {
+                      // ✅ Clear all auth data
                       localStorage.removeItem("token");
+                      localStorage.removeItem("user");
+                      
+
+                      // Optional: clear everything (safe for admin apps)
+                      // localStorage.clear();
+
                       window.location.href = "/login";
                     }}
                     className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
@@ -693,6 +747,7 @@ const Dashboard = () => {
                       Logout
                     </span>
                   </button>
+
                 </div>
               )}
             </div>
@@ -728,13 +783,15 @@ const Dashboard = () => {
             </div>
             <p className="mt-6 font-medium" style={{ color: '#718096' }}>Loading your data...</p>
           </div>
-        ) : currentPage === "analytics" ? (
+        ) : currentPage === "analytics" && analyticsData ? (
           <AnalyticsPage
             analyticsData={analyticsData}
             syncStatus={syncStatus}
             onRefresh={fetchData}
           />
-        ) : currentPage === "clients" ? (
+        ) : currentPage === "analytics" ? (
+          <div className="p-6 text-slate-600">No analytics data available</div>
+        ): currentPage === "clients" ? (
           <ClientsPage
             clients={clients}
             clientsPage={clientsPage}
@@ -771,7 +828,7 @@ const Dashboard = () => {
             selectedUser={selectedUser}
             locationLogs={locationLogs}
             onBack={() => setCurrentPage("users")}
-            onRefresh={fetchUserLogs}
+            onRefresh={fetchUsers}
           />
         ) : currentPage === "userMeetings" ? (
           <UserMeetingsPage
@@ -805,7 +862,11 @@ const Dashboard = () => {
               fetchUserExpensesDetail(page, expensesPagination.limit)
             }
           />
-        ) : null}
+        ) : currentPage === "billingPlans" ? (
+          <BillingPlansPage />
+        ) : currentPage === "billingHistory" ? (
+          <BillingHistoryPage />
+        ): null}
 
           {selectedClientForServices && (
             <ClientServicesModal

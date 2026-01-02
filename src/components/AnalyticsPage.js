@@ -17,7 +17,6 @@ import {
   Users,
   Activity,
   MapPin,
-  RefreshCw,
   Target,
   Clock,
   AlertCircle,
@@ -99,19 +98,53 @@ const InsightCard = ({ icon: Icon, gradient, title, value, subtitle }) => (
 );
 
 const AnalyticsPage = ({ analyticsData, syncStatus, onRefresh }) => {
-  if (!analyticsData) return null;
+  if (
+    !analyticsData ||
+    !analyticsData.stats ||
+    !Array.isArray(analyticsData.trends)
+  ) {
+    return (
+      <div className="p-6 text-slate-600">
+        Loading analytics...
+      </div>
+    );
+  }
   
-  const { stats, trends, distribution } = analyticsData;
+  const {
+    stats = {},
+    trends = [],
+  } = analyticsData;
+
+  const {
+    totalClients = 0,
+    activeClients = 0,
+    withCoordinates = 0,
+    uniquePincodes = 0,
+    totalUsers = 0,
+    totalLogs = 0,
+    coordinatesCoverage = "0.0",
+  } = stats;
 
   // Calculate valuable metrics
-  const conversionRate = ((stats.activeClients / stats.totalClients) * 100).toFixed(1);
-  const avgLogsPerUser = stats.totalUsers > 0 ? Math.round(stats.totalLogs / stats.totalUsers) : 0;
-  const clientsPerArea = stats.uniquePincodes > 0 ? Math.round(stats.totalClients / stats.uniquePincodes) : 0;
-  
-  // Calculate growth (compare last 2 months)
-  const lastMonth = trends[trends.length - 1]?.clients || 0;
-  const prevMonth = trends[trends.length - 2]?.clients || 0;
-  const growth = prevMonth > 0 ? (((lastMonth - prevMonth) / prevMonth) * 100).toFixed(1) : 0;
+  const conversionRate =
+    totalClients > 0
+      ? ((activeClients / totalClients) * 100).toFixed(1)
+      : "0.0";
+
+  const avgLogsPerUser =
+    totalUsers > 0 ? Math.round(totalLogs / totalUsers) : 0;
+
+  const clientsPerArea =
+    uniquePincodes > 0 ? Math.round(totalClients / uniquePincodes) : 0;
+
+  // Growth calculation (safe)
+  const lastMonth = trends.at(-1)?.clients ?? 0;
+  const prevMonth = trends.at(-2)?.clients ?? 0;
+
+  const growth =
+    prevMonth > 0
+      ? (((lastMonth - prevMonth) / prevMonth) * 100).toFixed(1)
+      : "0.0";
 
   return (
     <div className="space-y-5">
@@ -121,7 +154,7 @@ const AnalyticsPage = ({ analyticsData, syncStatus, onRefresh }) => {
       <div className="grid grid-cols-4 gap-4">
         <CompactStatCard 
           title="Total Clients" 
-          value={stats.totalClients} 
+          value={totalClients}
           change={parseFloat(growth)}
           isPositive={growth > 0}
           icon={Users} 
@@ -137,7 +170,7 @@ const AnalyticsPage = ({ analyticsData, syncStatus, onRefresh }) => {
         />
         <CompactStatCard 
           title="GPS Coverage" 
-          value={`${stats.coordinatesCoverage}%`}
+          value={`${coordinatesCoverage}%`}
           change={5.1}
           isPositive={true}
           icon={MapPin} 
@@ -159,14 +192,14 @@ const AnalyticsPage = ({ analyticsData, syncStatus, onRefresh }) => {
           icon={Users}
           gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
           title="Team Size"
-          value={stats.totalUsers}
+          value={totalUsers}
           subtitle="Active users"
         />
         <InsightCard
           icon={MapPin}
           gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
           title="Service Areas"
-          value={stats.uniquePincodes}
+          value={uniquePincodes}
           subtitle="Unique pincodes"
         />
         <InsightCard
@@ -180,21 +213,21 @@ const AnalyticsPage = ({ analyticsData, syncStatus, onRefresh }) => {
           icon={Activity}
           gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
           title="Inactive"
-          value={stats.totalClients - stats.activeClients}
+          value={totalClients - activeClients}
           subtitle="Need attention"
         />
         <InsightCard
           icon={AlertCircle}
           gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
           title="Missing GPS"
-          value={stats.totalClients - stats.withCoordinates}
+          value={totalClients - withCoordinates}
           subtitle="Need geocoding"
         />
         <InsightCard
           icon={Clock}
           gradient="linear-gradient(135deg, #764ba2 0%, #667eea 100%)"
           title="Total Logs"
-          value={`${(stats.totalLogs / 1000).toFixed(1)}K`}
+          value={`${(totalLogs / 1000).toFixed(1)}K`}
           subtitle="Tracking records"
         />
       </div>

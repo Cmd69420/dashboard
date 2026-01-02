@@ -24,21 +24,34 @@ export default function AdminLogin() {
       const data = await res.json();
       const { token } = data;
 
-      // Decode token to ensure user is admin
+      // ✅ Decode token
       const payload = JSON.parse(atob(token.split(".")[1]));
+
       if (!payload.isAdmin) {
         throw new Error("You are not authorized to access the admin dashboard.");
       }
 
+      // ✅ SAVE TO LOCAL STORAGE
       localStorage.setItem("token", token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: payload.id,
+          email: payload.email,
+          role: payload.role,
+          isAdmin: payload.isAdmin,
+          name: payload.name || "",
+        })
+      );
+
       window.location.href = "/dashboard";
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">

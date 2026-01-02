@@ -1,18 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback  } from "react";
 import {
   RefreshCw,
   Search,
-  Calendar,
   DollarSign,
   AlertCircle,
   CheckCircle,
   XCircle,
   Clock,
-  Filter,
-  FileText,
   Edit2,
-  Eye,
-  TrendingUp,
   Package
 } from "lucide-react";
 
@@ -77,83 +72,7 @@ const ClientServicesPage = ({ onRefresh, onEditServices }) => {
     fetchAllData();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [searchTerm, statusFilter, expiryFilter, sortBy, allServices]);
-
-  // ✅ FIXED: Removed duplicate token declaration
-  const fetchAllData = async () => {
-    setLoading(true);
-    setError("");
-    
-    try {
-      // Get token from localStorage
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No token found - please login again");
-      }
-
-      // Decode token to see user info
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        console.log("🔐 Current user:", payload);
-        console.log("👤 User ID:", payload.id);
-        console.log("🛡️ Is Admin:", payload.isAdmin);
-        console.log("📝 Role:", payload.role || "no role");
-      } catch (e) {
-        console.error("❌ Token decode failed:", e);
-      }
-
-      console.log("🔄 Fetching all services from /services/all");
-      
-      // Make the request
-      const response = await fetch(
-        `${API_BASE_URL}/services/all?limit=10000`,
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-        }
-      );
-      
-      console.log("📡 Response status:", response.status);
-      console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        // Get error details
-        const errorText = await response.text();
-        console.error("❌ Error response:", errorText);
-        throw new Error(`Failed to fetch services: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      const servicesList = data.services || [];
-      
-      console.log(`✅ Loaded ${servicesList.length} services`);
-      
-      setAllServices(servicesList);
-      setFilteredServices(servicesList);
-      
-      // Also fetch clients for the "Manage" button
-      const clientsRes = await fetch(
-        `${API_BASE_URL}/admin/clients?limit=10000`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const clientsData = await clientsRes.json();
-      setClients(clientsData.clients || []);
-      
-    } catch (err) {
-      console.error("❌ Error loading data:", err);
-      setError(`Failed to load services: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     let filtered = [...allServices];
 
     // Search filter
@@ -215,6 +134,82 @@ const ClientServicesPage = ({ onRefresh, onEditServices }) => {
     });
 
     setFilteredServices(filtered);
+  }, [searchTerm, statusFilter, expiryFilter, sortBy, allServices]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // ✅ FIXED: Removed duplicate token declaration
+  const fetchAllData = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No token found - please login again");
+      }
+
+      // Decode token to see user info
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("🔐 Current user:", payload);
+        console.log("👤 User ID:", payload.id);
+        console.log("🛡️ Is Admin:", payload.isAdmin);
+        console.log("📝 Role:", payload.role || "no role");
+      } catch (e) {
+        console.error(" Token decode failed:", e);
+      }
+
+      console.log("🔄 Fetching all services from /services/all");
+      
+      // Make the request
+      const response = await fetch(
+        `${API_BASE_URL}/services/all?limit=10000`,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+      
+      console.log("📡 Response status:", response.status);
+      console.log("📡 Response headers:", Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        // Get error details
+        const errorText = await response.text();
+        console.error(" Error response:", errorText);
+        throw new Error(`Failed to fetch services: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      const servicesList = data.services || [];
+      
+      console.log(` Loaded ${servicesList.length} services`);
+      
+      setAllServices(servicesList);
+      setFilteredServices(servicesList);
+      
+      // Also fetch clients for the "Manage" button
+      const clientsRes = await fetch(
+        `${API_BASE_URL}/admin/clients?limit=10000`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const clientsData = await clientsRes.json();
+      setClients(clientsData.clients || []);
+      
+    } catch (err) {
+      console.error(" Error loading data:", err);
+      setError(`Failed to load services: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (status) => {

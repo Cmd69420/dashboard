@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Plus,
@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Clock,
   FileText
-} from 'lucide-react';
+} from "lucide-react";
 
 const API_BASE_URL = "https://geo-track-1.onrender.com";
 
@@ -91,13 +91,7 @@ const ClientServicesModal = ({ client, onClose }) => {
 
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    if (client) {
-      fetchServices();
-    }
-  }, [client]);
-
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -127,7 +121,13 @@ const ClientServicesModal = ({ client, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [client, token]);
+
+  useEffect(() => {
+    if (client) {
+      fetchServices();
+    }
+  }, [client, fetchServices]);
 
   const handleSubmit = async () => {
     setError("");
