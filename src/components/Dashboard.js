@@ -13,6 +13,8 @@ import UserManagementPage from "./UserManagementPage";
 import ClientServicesPage from './ClientServicesPage';
 import ClientServicesModal from './ClientServicesModal';
 import CompanyManagementPage from './CompanyManagementPage';
+import BillingPlansPage from './BillingPlansPage';
+import BillingHistoryPage from './BillingHistoryPage';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
@@ -37,6 +39,8 @@ const Dashboard = () => {
   const CLIENTS_PER_PAGE = 50;
   const [clientsTotalPages, setClientsTotalPages] = useState(1);
   const [clientsTotal, setClientsTotal] = useState(0);
+  // billing
+const [billingOpen, setBillingOpen] = useState(false);  // ADD THIS
 
   // users
   const [users, setUsers] = useState([]);
@@ -119,6 +123,12 @@ const Dashboard = () => {
   }, [profileOpen]);
 
   const token = localStorage.getItem("token");
+
+  useEffect(() => {
+  if (currentPage === "billingPlans" || currentPage === "billingHistory") {
+    setBillingOpen(true);
+  }
+}, [currentPage])
 
   // Main fetch whenever page or selectedUser changes
   useEffect(() => {
@@ -534,39 +544,51 @@ const Dashboard = () => {
         </nav>
 
         {/* Sidebar Metric */}
-        <div
-          className="absolute bottom-8 left-6 right-6 p-5 rounded-2xl"
-          style={{
-            background: '#e6eaf0',
-            boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-slate-600" />
-              <span className="text-sm font-semibold text-slate-700">
-                Storage Used
-              </span>
-            </div>
-            <span className="text-xs font-semibold text-slate-500">62%</span>
-          </div>
-          <div
-            className="w-full h-2 rounded-full overflow-hidden"
+         {/* ADD THIS ENTIRE BILLING SECTION */}
+        <div className="mt-4">
+          <button
+            onClick={() => setBillingOpen(prev => !prev)}
+            className="w-full p-5 rounded-2xl flex items-center gap-4 transition-all duration-200"
             style={{
-              background: '#d1d9e6',
-              boxShadow: 'inset 2px 2px 4px #c5c8cf, inset -2px -2px 4px #ffffff',
+              background: '#e6eaf0',
+              boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
             }}
           >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: '62%',
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-              }}
-            />
-          </div>
-          <p className="mt-2 text-xs text-slate-500">6.2 GB of 10 GB used</p>
+            <Package className="w-6 h-6 text-slate-600" />
+            <span className="font-semibold text-base text-slate-700">
+              Pricing & Billing
+            </span>
+          </button>
+
+          {billingOpen && (
+            <div className="ml-6 mt-3 space-y-2">
+              <button
+                onClick={() => setCurrentPage("billingPlans")}
+                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
+                style={{
+                  background: currentPage === "billingPlans" ? "#dfe6f3" : "#ecf0f3",
+                  fontWeight: currentPage === "billingPlans" ? "600" : "400",
+                  color: '#64748b'
+                }}
+              >
+                • Plans
+              </button>
+
+              <button
+                onClick={() => setCurrentPage("billingHistory")}
+                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
+                style={{
+                  background: currentPage === "billingHistory" ? "#dfe6f3" : "#ecf0f3",
+                  fontWeight: currentPage === "billingHistory" ? "600" : "400",
+                  color: '#64748b'
+                }}
+              >
+                • History
+              </button>
+            </div>
+          )}
         </div>
+
       </aside>
 
       {/* Main Content */}
@@ -584,6 +606,8 @@ const Dashboard = () => {
               {currentPage === "userLogs" && "Location Tracking"}
               {currentPage === "userMeetings" && "Meeting History"}
               {currentPage === "userExpenses" && "Expense Reports"}
+               {currentPage === "billingPlans" && "Pricing Plans"}          // ADD THIS
+              {currentPage === "billingHistory" && "Billing History"} 
             </h1>
             <p style={{ color: '#64748b' }}>
               {currentPage === "analytics" && "Monitor your business performance"}
@@ -595,6 +619,8 @@ const Dashboard = () => {
               {currentPage === "userLogs" && "Detailed location history"}
               {currentPage === "userMeetings" && "Complete meeting logs"}
               {currentPage === "userExpenses" && "Track and review expenses"}
+              {currentPage === "billingPlans" && "View and manage subscription plans"}      // ADD THIS
+              {currentPage === "billingHistory" && "View past billing and invoices"} 
             </p>
           </div>
 
@@ -794,9 +820,11 @@ const Dashboard = () => {
             }
           />
         ) : currentPage === "companyManagement" ? (  // ← ADD THIS CASE
-  <CompanyManagementPage
-    onRefresh={fetchData}
-  />
+            <CompanyManagementPage onRefresh={fetchData} />
+             ) : currentPage === "billingPlans" ? (      // ADD THIS
+          <BillingPlansPage />
+        ) : currentPage === "billingHistory" ? (    // ADD THIS
+          <BillingHistoryPage />
         ) : null}
 
         {selectedClientForServices && (
