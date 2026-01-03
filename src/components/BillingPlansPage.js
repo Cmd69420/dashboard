@@ -83,7 +83,7 @@ export default function BillingPlansPage() {
     const fetchPlans = async () => {
       try {
         const res = await fetch(
-          `https://lisence-system.onrender.com/api/license/licenses-by-product/${PRODUCT_ID}`
+          `https://lisence-system.onrender.com/api/license/licenses-by-product/69589d3ba7306459dd47fd87`
         );
         const data = await res.json();
 
