@@ -40,7 +40,7 @@ const Dashboard = () => {
   const [clientsTotalPages, setClientsTotalPages] = useState(1);
   const [clientsTotal, setClientsTotal] = useState(0);
   // billing
-const [billingOpen, setBillingOpen] = useState(false);  // ADD THIS
+const [billingOpen, setBillingOpen] = useState(false);  
 
   // users
   const [users, setUsers] = useState([]);
@@ -544,7 +544,6 @@ const [billingOpen, setBillingOpen] = useState(false);  // ADD THIS
         </nav>
 
         {/* Sidebar Metric */}
-         {/* ADD THIS ENTIRE BILLING SECTION */}
         <div className="mt-4">
           <button
             onClick={() => setBillingOpen(prev => !prev)}
@@ -606,7 +605,7 @@ const [billingOpen, setBillingOpen] = useState(false);  // ADD THIS
               {currentPage === "userLogs" && "Location Tracking"}
               {currentPage === "userMeetings" && "Meeting History"}
               {currentPage === "userExpenses" && "Expense Reports"}
-               {currentPage === "billingPlans" && "Pricing Plans"}          // ADD THIS
+               {currentPage === "billingPlans" && "Pricing Plans"}       
               {currentPage === "billingHistory" && "Billing History"} 
             </h1>
             <p style={{ color: '#64748b' }}>
@@ -619,7 +618,7 @@ const [billingOpen, setBillingOpen] = useState(false);  // ADD THIS
               {currentPage === "userLogs" && "Detailed location history"}
               {currentPage === "userMeetings" && "Complete meeting logs"}
               {currentPage === "userExpenses" && "Track and review expenses"}
-              {currentPage === "billingPlans" && "View and manage subscription plans"}      // ADD THIS
+              {currentPage === "billingPlans" && "View and manage subscription plans"}     
               {currentPage === "billingHistory" && "View past billing and invoices"} 
             </p>
           </div>
