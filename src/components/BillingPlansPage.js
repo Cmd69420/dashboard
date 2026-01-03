@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const PRODUCT_ID = "692e9ec27bb01a99b1ea4aad";
+const PRODUCT_ID = "69589d3ba7306459dd47fd87";
 
 export default function BillingPlansPage() {
   const [plans, setPlans] = useState([]);

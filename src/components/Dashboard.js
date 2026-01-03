@@ -818,11 +818,11 @@ const [billingOpen, setBillingOpen] = useState(false);
               fetchUserExpensesDetail(page, expensesPagination.limit)
             }
           />
-        ) : currentPage === "companyManagement" ? (  // ← ADD THIS CASE
+        ) : currentPage === "companyManagement" ? (
             <CompanyManagementPage onRefresh={fetchData} />
-             ) : currentPage === "billingPlans" ? (      // ADD THIS
+             ) : currentPage === "billingPlans" ? (     
           <BillingPlansPage />
-        ) : currentPage === "billingHistory" ? (    // ADD THIS
+        ) : currentPage === "billingHistory" ? (    
           <BillingHistoryPage />
         ) : null}
 
