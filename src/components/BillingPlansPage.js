@@ -13,7 +13,8 @@ export default function BillingPlansPage() {
 
   // const activeTypeId = activeLicense?.licenseTypeId?._id?.toString();
 
-const email = localStorage.getItem("userEmail");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const email = user?.email;
 
   /* ================= FETCH PLANS ================= */
   useEffect(() => {
@@ -27,7 +28,7 @@ const email = localStorage.getItem("userEmail");
         // 🔥 TRANSFORM HERE
         const transformedPlans = (data?.licenses || []).map((plan) => ({
           ...plan,
-          licenseType: plan.licenseTypeId, // 👈 alias
+          licenseType: plan.licenseTypeId, 
         }));
 
         setPlans(transformedPlans);
@@ -61,7 +62,10 @@ useEffect(() => {
       console.log("ACTIVE LICENSE RESPONSE:", data);
 
       if (data?.success && data.activeLicense) {
-        setActiveLicense(data.activeLicense);
+        setActiveLicense({
+            ...data.activeLicense,
+            uiFeatures: data.features || [],
+            });
       } else {
         setActiveLicense(null);
       }
@@ -134,9 +138,9 @@ plans.forEach((p, i) => {
   console.log(
     "PLAN", i,
     "TYPE ID:",
-    p.licenseTypeId?._id,
+    p.licenseType?._id,
     "== ACTIVE?",
-    p.licenseTypeId?._id === activeLicense?.licenseTypeId?._id
+    p.licenseType?._id === activeLicense?.licenseTypeId?._id
   );
 });
 
@@ -148,7 +152,7 @@ plans.forEach((p, i) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => {
-          const type = plan.licenseTypeId || {};
+          const type = plan.licenseType || {};
           const active = isCurrentPlan(plan);
 
           return (
@@ -184,13 +188,13 @@ plans.forEach((p, i) => {
                 {type.price?.billingPeriod || "monthly"}
               </p>
 
-              {Array.isArray(type.features) && (
-                <ul className="text-sm text-gray-600 mb-4 space-y-1">
-                  {type.features.map((f, i) => (
-                    <li key={i}>• {f}</li>
-                  ))}
-                </ul>
-              )}
+             {Array.isArray(type.features) && (
+  <ul className="text-sm text-gray-600 mb-4 space-y-1">
+    {type.features.map((f, i) => (
+      <li key={i}>• {f.uiLabel || f}</li>
+    ))}
+  </ul>
+)}
 
               {plan.maxLimits && (
                 <div className="text-xs text-gray-500 mb-4 space-y-1">
