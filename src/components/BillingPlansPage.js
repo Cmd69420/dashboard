@@ -28,7 +28,7 @@ export default function BillingPlansPage() {
         // 🔥 TRANSFORM HERE
         const transformedPlans = (data?.licenses || []).map((plan) => ({
           ...plan,
-          licenseType: plan.licenseTypeId, 
+          licenseType: plan.licenseType, 
         }));
 
         setPlans(transformedPlans);
@@ -63,9 +63,9 @@ useEffect(() => {
 
       if (data?.success && data.activeLicense) {
         setActiveLicense({
-            ...data.activeLicense,
-            uiFeatures: data.features || [],
-            });
+          ...data.activeLicense,
+          licenseType: data.activeLicense.licenseTypeId, // normalize
+        });
       } else {
         setActiveLicense(null);
       }
@@ -90,11 +90,11 @@ useEffect(() => {
 //     getPlanTypeId(plan) === getActiveTypeId();
 
 const isCurrentPlan = (plan) => {
-  if (!activeLicense?.licenseTypeId?._id) return false;
+  if (!activeLicense?.licenseType?._id) return false;
   if (!plan?.licenseType?._id) return false;
 
   return (
-    String(activeLicense.licenseTypeId._id) ===
+    String(activeLicense.licenseType._id) ===
     String(plan.licenseType._id)
   );
 };
@@ -102,7 +102,7 @@ const isCurrentPlan = (plan) => {
 const openModal = (plan) => {
   const isRenew =
     String(plan.licenseType?._id) ===
-    String(activeLicense?.licenseTypeId?._id);
+    String(activeLicense?.licenseType?._id);
 
   setSelectedPlan({
     licenseTypeId: plan.licenseType._id,
@@ -117,7 +117,7 @@ const openModal = (plan) => {
 
 const handleProceed = () => {
   console.log("Proceed payload:", {
-    licenseTypeId: selectedPlan.licenseTypeId,
+    licenseTypeId: selectedPlan.licenseType,
     renewType,
     isRenew: selectedPlan.isRenew,
     price: selectedPlan.price,
@@ -137,10 +137,10 @@ console.log("ACTIVE LICENSE RAW:", activeLicense);
 plans.forEach((p, i) => {
   console.log(
     "PLAN", i,
-    "TYPE ID:",
-    p.licenseType?._id,
-    "== ACTIVE?",
-    p.licenseType?._id === activeLicense?.licenseTypeId?._id
+    "PLAN TYPE:", p.licenseType?._id,
+    "ACTIVE TYPE:", activeLicense?.licenseType?._id,
+    "MATCH:",
+    String(p.licenseType?._id) === String(activeLicense?.licenseType?._id)
   );
 });
 
