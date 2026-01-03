@@ -13,8 +13,7 @@ export default function BillingPlansPage() {
 
   // const activeTypeId = activeLicense?.licenseTypeId?._id?.toString();
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const email = user?.email;
+const email = localStorage.getItem("userEmail");
 
   /* ================= FETCH PLANS ================= */
   useEffect(() => {
@@ -24,7 +23,14 @@ export default function BillingPlansPage() {
           `https://lisence-system.onrender.com/api/license/licenses-by-product/${PRODUCT_ID}`
         );
         const data = await res.json();
-        setPlans(data?.licenses || []);
+
+        // 🔥 TRANSFORM HERE
+        const transformedPlans = (data?.licenses || []).map((plan) => ({
+          ...plan,
+          licenseType: plan.licenseTypeId, // 👈 alias
+        }));
+
+        setPlans(transformedPlans);
       } catch (err) {
         console.error("Failed to load plans", err);
         setPlans([]);
@@ -81,23 +87,23 @@ useEffect(() => {
 
 const isCurrentPlan = (plan) => {
   if (!activeLicense?.licenseTypeId?._id) return false;
-  if (!plan?.licenseTypeId?._id) return false;
+  if (!plan?.licenseType?._id) return false;
 
-  const activeId = String(activeLicense.licenseTypeId._id);
-  const planId = String(plan.licenseTypeId._id);
-
-  return activeId === planId;
+  return (
+    String(activeLicense.licenseTypeId._id) ===
+    String(plan.licenseType._id)
+  );
 };
 
 const openModal = (plan) => {
   const isRenew =
-    String(plan.licenseTypeId?._id) ===
+    String(plan.licenseType?._id) ===
     String(activeLicense?.licenseTypeId?._id);
 
   setSelectedPlan({
-    licenseTypeId: plan.licenseTypeId._id,
-    name: plan.licenseTypeId?.name,
-    price: plan.licenseTypeId?.price?.amount,
+    licenseTypeId: plan.licenseType._id,
+    name: plan.licenseType?.name,
+    price: plan.licenseType?.price?.amount,
     isRenew,
   });
 
