@@ -1,22 +1,84 @@
 import { useEffect, useState } from "react";
 
 const PRODUCT_ID = "69589d3ba7306459dd47fd87";
+const API_BASE = "https://backup-server-q2dc.onrender.com"; // Change to your backend URL
 
 export default function BillingPlansPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeLicense, setActiveLicense] = useState(null);
+  const [companyLicense, setCompanyLicense] = useState(null);
+  const [userCount, setUserCount] = useState(null);
 
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [renewType, setRenewType] = useState("manual");
 
-  // const activeTypeId = activeLicense?.licenseTypeId?._id?.toString();
+  // Get token from localStorage
+  const token = localStorage.getItem("token");
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const email = user?.email;
+  /* ================= FETCH COMPANY LICENSE (FROM YOUR BACKEND) ================= */
+  useEffect(() => {
+    if (!token) {
+      console.warn("No auth token found");
+      return;
+    }
 
-  /* ================= FETCH PLANS ================= */
+    const fetchLicense = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/license/my-license`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("📄 COMPANY LICENSE:", data);
+
+        setCompanyLicense(data);
+      } catch (err) {
+        console.error("Failed to load company license:", err);
+        setCompanyLicense(null);
+      }
+    };
+
+    fetchLicense();
+  }, [token]);
+
+  /* ================= FETCH USER COUNT ================= */
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchUserCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/license/my-license/user-count`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log("👥 USER COUNT:", data);
+
+        setUserCount(data);
+      } catch (err) {
+        console.error("Failed to load user count:", err);
+      }
+    };
+
+    fetchUserCount();
+  }, [token]);
+
+  /* ================= FETCH PLANS FROM LMS ================= */
   useEffect(() => {
     const fetchPlans = async () => {
       try {
@@ -25,10 +87,9 @@ export default function BillingPlansPage() {
         );
         const data = await res.json();
 
-        // 🔥 TRANSFORM HERE
         const transformedPlans = (data?.licenses || []).map((plan) => ({
           ...plan,
-          licenseType: plan.licenseType, 
+          licenseType: plan.licenseType,
         }));
 
         setPlans(transformedPlans);
@@ -43,112 +104,137 @@ export default function BillingPlansPage() {
     fetchPlans();
   }, []);
 
-  /* ================= FETCH ACTIVE LICENSE ================= */
+  /* ================= HELPERS ================= */
+  const isCurrentPlan = (plan) => {
+    if (!companyLicense?.license?.plan) return false;
+    if (!plan?.licenseType?.name) return false;
 
-useEffect(() => {
-  if (!email) {
-    console.warn("No email found in localStorage");
-    return;
-  }
-
-  const fetchActive = async () => {
-    try {
-      const url = `https://lisence-system.onrender.com/api/external/actve-license/${email}?productId=${PRODUCT_ID}`;
-      console.log("Fetching active license:", url);
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      console.log("ACTIVE LICENSE RESPONSE:", data);
-
-      if (data?.success && data.activeLicense) {
-        setActiveLicense({
-          ...data.activeLicense,
-          licenseType: data.activeLicense.licenseTypeId, // normalize
-        });
-      } else {
-        setActiveLicense(null);
-      }
-    } catch (err) {
-      console.error("Active license fetch failed", err);
-      setActiveLicense(null);
-    }
+    // Match by plan name (e.g., "Standard", "Professional", "Business")
+    return (
+      companyLicense.license.plan.toLowerCase() === 
+      plan.licenseType.name.toLowerCase()
+    );
   };
 
-  fetchActive();
-}, [email]);
+  const openModal = (plan) => {
+    const currentPlan = companyLicense?.license?.plan || "";
+    const isRenew = currentPlan.toLowerCase() === plan.licenseType?.name.toLowerCase();
 
-  /* ================= HELPERS ================= */
+    setSelectedPlan({
+      licenseTypeId: plan.licenseType._id,
+      name: plan.licenseType?.name,
+      price: plan.licenseType?.price?.amount,
+      isRenew,
+    });
 
-  // const getPlanTypeId = (plan) =>
-  //   String(plan?.licenseTypeId?._id || "");
+    setRenewType("manual");
+    setShowModal(true);
+  };
 
-  // const getActiveTypeId = () =>
-  //   String(activeLicense?.licenseTypeId?._id || "");
+  const handleProceed = () => {
+    console.log("Proceed payload:", {
+      licenseTypeId: selectedPlan.licenseTypeId,
+      renewType,
+      isRenew: selectedPlan.isRenew,
+      price: selectedPlan.price,
+      companyId: companyLicense?.company?.id,
+      companySubdomain: companyLicense?.company?.subdomain,
+    });
 
-//   const isCurrentPlan = (plan) =>
-//     getPlanTypeId(plan) === getActiveTypeId();
+    // TODO: Redirect to payment gateway or trigger purchase API
+    // window.location.href = `payment-url?plan=${selectedPlan.licenseTypeId}`;
 
-const isCurrentPlan = (plan) => {
-  if (!activeLicense?.licenseType?._id) return false;
-  if (!plan?.licenseType?._id) return false;
-
-  return (
-    String(activeLicense.licenseType._id) ===
-    String(plan.licenseType._id)
-  );
-};
-
-const openModal = (plan) => {
-  const isRenew =
-    String(plan.licenseType?._id) ===
-    String(activeLicense?.licenseType?._id);
-
-  setSelectedPlan({
-    licenseTypeId: plan.licenseType._id,
-    name: plan.licenseType?.name,
-    price: plan.licenseType?.price?.amount,
-    isRenew,
-  });
-
-  setRenewType("manual");
-  setShowModal(true);
-};
-
-const handleProceed = () => {
-  console.log("Proceed payload:", {
-    licenseTypeId: selectedPlan.licenseType,
-    renewType,
-    isRenew: selectedPlan.isRenew,
-    price: selectedPlan.price,
-  });
-
-  setShowModal(false);
-};
-
+    setShowModal(false);
+  };
 
   if (loading) return <div className="p-6">Loading plans...</div>;
 
+  /* ================= DEBUG LOGS ================= */
+  console.log("COMPANY LICENSE:", companyLicense);
+  console.log("CURRENT PLAN:", companyLicense?.license?.plan);
 
-  // ===== DEBUG LOGS =====
-
-console.log("ACTIVE LICENSE RAW:", activeLicense);
-
-plans.forEach((p, i) => {
-  console.log(
-    "PLAN", i,
-    "PLAN TYPE:", p.licenseType?._id,
-    "ACTIVE TYPE:", activeLicense?.licenseType?._id,
-    "MATCH:",
-    String(p.licenseType?._id) === String(activeLicense?.licenseType?._id)
-  );
-});
-
-
+  plans.forEach((p, i) => {
+    console.log(
+      "PLAN", i,
+      "NAME:", p.licenseType?.name,
+      "MATCH:", isCurrentPlan(p)
+    );
+  });
 
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-semibold mb-6">Pricing Plans</h2>
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* ================= LICENSE STATUS BANNER ================= */}
+      {companyLicense?.license && (
+        <div className={`mb-6 p-4 rounded-xl border-2 ${
+          companyLicense.license.isExpired 
+            ? 'bg-red-50 border-red-300' 
+            : companyLicense.license.isExpiringSoon 
+            ? 'bg-yellow-50 border-yellow-300' 
+            : 'bg-green-50 border-green-300'
+        }`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold text-lg mb-1">
+                {companyLicense.company.name}
+              </h3>
+              <p className="text-sm text-gray-600">
+                Current Plan: <strong>{companyLicense.license.plan}</strong>
+              </p>
+              <p className="text-sm text-gray-600">
+                License Key: <code className="bg-gray-200 px-2 py-0.5 rounded">{companyLicense.license.licenseKey}</code>
+              </p>
+            </div>
+            <div className="text-right">
+              {companyLicense.license.expiresAt ? (
+                <>
+                  <p className="text-sm text-gray-600">
+                    {companyLicense.license.isExpired ? 'Expired on' : 'Expires on'}
+                  </p>
+                  <p className="font-semibold">
+                    {new Date(companyLicense.license.expiresAt).toLocaleDateString()}
+                  </p>
+                  {!companyLicense.license.isExpired && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ({companyLicense.license.daysUntilExpiry} days remaining)
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-600">No expiry</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= USER COUNT ================= */}
+      {userCount && (
+        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-600">Current Users</p>
+              <p className="text-2xl font-bold">{userCount.currentUsers}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Max Allowed</p>
+              <p className="text-2xl font-bold">{userCount.maxAllowedUsers || '∞'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Available Slots</p>
+              <p className="text-2xl font-bold text-green-600">
+                {userCount.availableSlots ?? '∞'}
+              </p>
+            </div>
+          </div>
+          {userCount.isAtCapacity && (
+            <p className="text-sm text-red-600 mt-2">
+              ⚠️ You've reached your user limit. Upgrade to add more users.
+            </p>
+          )}
+        </div>
+      )}
+
+      <h2 className="text-2xl font-semibold mb-6">Pricing Plans</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => {
@@ -166,13 +252,12 @@ plans.forEach((p, i) => {
               }}
             >
               {/* ACTIVE BADGE */}
-             {active && (
+              {active && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 
                     bg-green-600 text-white text-xs px-3 py-1 rounded-full shadow">
-                    ✓ Active Plan
+                  ✓ Active Plan
                 </div>
-                )}
-
+              )}
 
               <h3 className="text-lg font-semibold mb-1">{type.name}</h3>
 
@@ -188,13 +273,13 @@ plans.forEach((p, i) => {
                 {type.price?.billingPeriod || "monthly"}
               </p>
 
-             {Array.isArray(type.features) && (
-  <ul className="text-sm text-gray-600 mb-4 space-y-1">
-    {type.features.map((f, i) => (
-      <li key={i}>• {f.uiLabel || f}</li>
-    ))}
-  </ul>
-)}
+              {Array.isArray(type.features) && (
+                <ul className="text-sm text-gray-600 mb-4 space-y-1">
+                  {type.features.map((f, i) => (
+                    <li key={i}>• {f.uiLabel || f}</li>
+                  ))}
+                </ul>
+              )}
 
               {plan.maxLimits && (
                 <div className="text-xs text-gray-500 mb-4 space-y-1">
@@ -204,55 +289,33 @@ plans.forEach((p, i) => {
                 </div>
               )}
 
-              {active && activeLicense?.endDate && (
+              {active && companyLicense?.license?.expiresAt && (
                 <p className="text-xs text-green-700 mb-3">
-                  Renews on{" "}
+                  {companyLicense.license.isExpired ? 'Expired on' : 'Renews on'}{" "}
                   <strong>
-                    {new Date(activeLicense.endDate).toLocaleDateString()}
+                    {new Date(companyLicense.license.expiresAt).toLocaleDateString()}
                   </strong>
                 </p>
               )}
 
-              {/* {active ? (
+              {active ? (
                 <button
-                  onClick={() => openModal(plan)}
-                  className="w-full py-2 rounded-xl font-semibold bg-green-100 text-green-700"
+                  disabled
+                  className="w-full py-2 rounded-xl font-semibold bg-green-200 text-green-800 cursor-not-allowed"
                 >
-                  Renew / Manage
+                  Current Plan
                 </button>
               ) : (
                 <button
                   onClick={() => openModal(plan)}
                   className="w-full py-2 rounded-xl text-white font-medium"
                   style={{
-                    background:
-                      "linear-gradient(135deg, #667eea, #764ba2)",
+                    background: "linear-gradient(135deg, #667eea, #764ba2)",
                   }}
                 >
-                  Select Plan
+                  {companyLicense?.license ? 'Upgrade' : 'Select Plan'}
                 </button>
-              )} */}
-
-
-              {active ? (
-                <button
-                    disabled
-                    className="w-full py-2 rounded-xl font-semibold bg-green-200 text-green-800 cursor-not-allowed"
-                >
-                    Current Plan
-                </button>
-                ) : (
-                <button
-                    onClick={() => openModal(plan)}
-                    className="w-full py-2 rounded-xl text-white font-medium"
-                    style={{
-                    background: "linear-gradient(135deg, #667eea, #764ba2)",
-                    }}
-                >
-                    Select Plan
-                </button>
-                )}
-
+              )}
             </div>
           );
         })}
@@ -262,7 +325,6 @@ plans.forEach((p, i) => {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4">
           <div className="bg-white rounded-3xl w-full max-w-xl shadow-xl overflow-hidden">
-
             {/* HEADER */}
             <div className="px-8 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
               <div className="flex justify-between items-center">
@@ -329,6 +391,24 @@ plans.forEach((p, i) => {
                   </>
                 )}
               </div>
+
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                <p className="text-sm font-semibold mb-2">Order Summary</p>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Plan:</span>
+                  <span className="font-semibold">{selectedPlan?.name}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Price:</span>
+                  <span className="font-semibold">₹{selectedPlan?.price}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Type:</span>
+                  <span className="font-semibold">
+                    {selectedPlan?.isRenew ? 'Renewal' : 'Upgrade'}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* FOOTER */}
@@ -344,7 +424,7 @@ plans.forEach((p, i) => {
                 onClick={handleProceed}
                 className="px-8 py-2 rounded-xl bg-purple-600 text-white font-semibold"
               >
-                Proceed
+                Proceed to Payment
               </button>
             </div>
           </div>
