@@ -13,6 +13,13 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+
+const formatNumber = (value, fallback = "Unlimited") =>
+  value === null || value === undefined
+    ? fallback
+    : Number(value).toLocaleString();
+
+
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
 const NeumorphicCard = ({ children, className = "" }) => (
@@ -52,7 +59,7 @@ const ProgressBar = ({ current, max, unlimited = false, color }) => {
       </div>
       <div className="flex justify-between items-center mt-2">
         <span className="text-sm font-bold" style={{ color: '#1e293b' }}>
-          {current.toLocaleString()} {unlimited ? '' : `/ ${max.toLocaleString()}`}
+          {formatNumber(current)} {unlimited ? '' : `/ ${formatNumber(max)}`}
         </span>
         {unlimited ? (
           <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: 'rgba(67, 233, 123, 0.2)', color: '#43e97b' }}>
@@ -64,7 +71,7 @@ const ProgressBar = ({ current, max, unlimited = false, color }) => {
           </span>
         ) : isNearLimit ? (
           <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>
-            ⚠️ {Math.floor(max - current)} left
+            ⚠️ {Math.max(0, max - current)} left
           </span>
         ) : (
           <span className="text-xs" style={{ color: '#64748b' }}>
@@ -199,7 +206,7 @@ const PlanUsageWidget = () => {
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold" style={{ color: '#667eea' }}>
-              ₹{plan.priceINR.toLocaleString()}
+              ₹{formatNumber(plan.priceINR, "Free")}
             </p>
             <p className="text-xs" style={{ color: '#64748b' }}>per month</p>
           </div>
@@ -281,7 +288,9 @@ const PlanUsageWidget = () => {
               </span>
             </div>
             <div className="text-sm" style={{ color: '#64748b' }}>
-              {plan.limits.storage.maxGB} GB available
+              {plan.limits.storage.maxGB === null
+  ? "Unlimited storage"
+  : `${plan.limits.storage.maxGB} GB available`}
             </div>
           </div>
         </div>
@@ -309,7 +318,8 @@ const PlanUsageWidget = () => {
           </div>
           <div className="p-3 rounded-xl" style={{ background: 'rgba(79, 172, 254, 0.1)' }}>
             <p className="text-xs font-medium mb-1" style={{ color: '#4facfe' }}>Location Logs</p>
-            <p className="text-2xl font-bold" style={{ color: '#1e293b' }}>{(usage.locationLogs / 1000).toFixed(1)}K</p>
+            <p className="text-2xl font-bold" style={{ color: '#1e293b' }}>{formatNumber((usage.locationLogs / 1000).toFixed(1), "0")}K
+</p>
           </div>
         </div>
       </NeumorphicCard>
