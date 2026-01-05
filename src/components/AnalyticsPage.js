@@ -1,9 +1,5 @@
 import React from "react";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
+import {LineChart,Line,AreaChart,Area,
   BarChart,
   Bar,
   PieChart,
@@ -29,6 +25,8 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import PlanUsageWidget from "./PlanUsageWidget";
+
 
 const NeumorphicCard = ({ children, className = "", noBorder = false }) => (
   <div
@@ -185,6 +183,8 @@ const prevMonth = trends?.[trends.length - 2]?.clients ?? 0;
 
   return (
   <div className="space-y-5">
+    {/* Plan Usage Widget */}
+    <PlanUsageWidget />
 
     {/* Key Metrics Row */}
     <div className="grid grid-cols-3 gap-4">
