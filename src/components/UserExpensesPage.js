@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw, Paperclip, ArrowLeft, DollarSign, TrendingUp, MapPin, Calendar } from "lucide-react";
+import { RefreshCw, Paperclip, ArrowLeft, DollarSign, TrendingUp, MapPin, Calendar, Route } from "lucide-react";
 
 const NeumorphicCard = ({ children, className = "" }) => (
   <div
@@ -183,10 +183,14 @@ const UserExpensesPage = ({
       ) : (
         <div className="space-y-4">
           {expenses.map((exp) => {
+            // ✅ Handle both receiptImages and receiptUrls (backward compatible)
             let attachmentsList = [];
             if (Array.isArray(exp.receiptImages)) {
-
               attachmentsList = exp.receiptImages.filter(
+                (url) => url && url.trim().length > 0
+              );
+            } else if (Array.isArray(exp.receiptUrls)) {
+              attachmentsList = exp.receiptUrls.filter(
                 (url) => url && url.trim().length > 0
               );
             }
@@ -197,6 +201,10 @@ const UserExpensesPage = ({
               ? new Date(exp.createdAt).toLocaleString()
               : "-";
 
+            // ✅ Check if multi-leg
+            const isMultiLeg = exp.isMultiLeg || exp.is_multi_leg || false;
+            const legs = exp.legs || [];
+
             return (
               <NeumorphicCard key={exp.id} className="hover:shadow-xl transition-all duration-300">
                 {/* Header */}
@@ -205,24 +213,43 @@ const UserExpensesPage = ({
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center"
                       style={{
-                        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                        background: isMultiLeg 
+                          ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+                          : 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
                         boxShadow: '3px 3px 6px rgba(0,0,0,0.15)',
                       }}
                     >
-                      <DollarSign className="w-6 h-6 text-white" />
+                      {isMultiLeg ? (
+                        <Route className="w-6 h-6 text-white" />
+                      ) : (
+                        <DollarSign className="w-6 h-6 text-white" />
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-bold" style={{ color: '#1e293b' }}>
-                        {exp.transportMode || "Expense"}
+                        {exp.tripName || exp.trip_name || exp.transportMode || "Expense"}
                       </h3>
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: '#43e97b' }}
-                      >
-                        {exp.amountSpent != null
-                          ? `${exp.currency || "₹"} ${Number(exp.amountSpent).toLocaleString()}`
-                          : "-"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: '#43e97b' }}
+                        >
+                          {exp.amountSpent != null
+                            ? `${exp.currency || "₹"} ${Number(exp.amountSpent).toLocaleString()}`
+                            : "-"}
+                        </span>
+                        {isMultiLeg && (
+                          <span
+                            className="text-xs font-semibold px-2 py-1 rounded-lg"
+                            style={{
+                              background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                              color: 'white',
+                            }}
+                          >
+                            {legs.length} Legs
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -244,28 +271,91 @@ const UserExpensesPage = ({
                   </div>
                 </div>
 
-                {/* Locations */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#43e97b' }} />
-                    <div>
-                      <p className="text-xs font-semibold mb-1" style={{ color: '#94a3b8' }}>From</p>
-                      <p className="text-sm" style={{ color: '#1e293b' }}>
-                        {exp.startLocation || "-"}
-                      </p>
+                {/* Locations (Only for single-leg) */}
+                {!isMultiLeg && (
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#43e97b' }} />
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: '#94a3b8' }}>From</p>
+                        <p className="text-sm" style={{ color: '#1e293b' }}>
+                          {exp.startLocation || "-"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#fa709a' }} />
-                    <div>
-                      <p className="text-xs font-semibold mb-1" style={{ color: '#94a3b8' }}>To</p>
-                      <p className="text-sm" style={{ color: '#1e293b' }}>
-                        {exp.endLocation || "-"}
-                      </p>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#fa709a' }} />
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: '#94a3b8' }}>To</p>
+                        <p className="text-sm" style={{ color: '#1e293b' }}>
+                          {exp.endLocation || "-"}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* ✅ NEW: Multi-Leg Segments */}
+                {isMultiLeg && legs.length > 0 && (
+                  <div className="mb-4 p-4 rounded-xl" style={{ background: 'rgba(250, 112, 154, 0.1)' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Route className="w-4 h-4" style={{ color: '#fa709a' }} />
+                      <p className="text-sm font-semibold" style={{ color: '#fa709a' }}>
+                        Journey Breakdown ({legs.length} legs)
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {legs.map((leg, idx) => (
+                        <div
+                          key={leg.id || idx}
+                          className="p-3 rounded-lg"
+                          style={{
+                            background: '#ffffff',
+                            boxShadow: '2px 2px 6px rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span
+                              className="text-xs font-bold px-2 py-1 rounded"
+                              style={{
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                              }}
+                            >
+                              Leg {leg.legNumber || leg.leg_number || idx + 1}
+                            </span>
+                            <span className="text-xs font-semibold" style={{ color: '#43e97b' }}>
+                              {leg.currency || exp.currency || "₹"} {Number(leg.amountSpent || leg.amount_spent).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <p className="font-medium mb-1" style={{ color: '#94a3b8' }}>From</p>
+                              <p style={{ color: '#1e293b' }}>{leg.startLocation || leg.start_location}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium mb-1" style={{ color: '#94a3b8' }}>To</p>
+                              <p style={{ color: '#1e293b' }}>{leg.endLocation || leg.end_location}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                            <div>
+                              <p className="font-medium" style={{ color: '#94a3b8' }}>
+                                {leg.distanceKm || leg.distance_km} km · {leg.transportMode || leg.transport_mode}
+                              </p>
+                            </div>
+                          </div>
+                          {(leg.notes || leg.notes) && (
+                            <p className="text-xs mt-2" style={{ color: '#64748b' }}>
+                              {leg.notes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Notes */}
                 {exp.notes && (
@@ -275,48 +365,69 @@ const UserExpensesPage = ({
                   </div>
                 )}
 
+                {/* ✅ Receipt Images */}
+                {attachmentsList.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold mb-2" style={{ color: '#94a3b8' }}>
+                      Receipts ({attachmentsList.length})
+                    </p>
+                    <div className="flex gap-2 flex-wrap">
+                      {attachmentsList.map((img, idx) => {
+                        // Handle both base64 and URL formats
+                        const imageSrc = img.startsWith("data:")
+                          ? img
+                          : img.startsWith("http")
+                          ? img
+                          : `data:image/webp;base64,${img}`;
+
+                        return (
+                          <img
+                            key={idx}
+                            src={imageSrc}
+                            alt={`Receipt ${idx + 1}`}
+                            style={{
+                              width: 90,
+                              height: 90,
+                              objectFit: "cover",
+                              borderRadius: 10,
+                              border: "2px solid rgba(102, 126, 234, 0.3)",
+                              cursor: "pointer",
+                              transition: 'transform 0.2s',
+                            }}
+                            className="hover:scale-110"
+                            onClick={() => window.open(imageSrc, "_blank")}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
                   <span className="text-xs" style={{ color: '#64748b' }}>
                     Recorded: {recordedDate}
                   </span>
-                  
-                  {attachmentsList.length > 0 && (
-  <div className="mt-3">
-    <p
-      className="text-xs font-semibold mb-2"
-      style={{ color: "#94a3b8" }}
-    >
-      Receipts
-    </p>
-
-    <div className="flex gap-2 flex-wrap">
-      {attachmentsList.map((img, idx) => {
-        const imageSrc = img.startsWith("data:")
-          ? img
-          : `data:image/webp;base64,${img}`;
-
-        return (
-          <img
-            key={idx}
-            src={imageSrc}
-            alt={`Receipt ${idx + 1}`}
-            style={{
-              width: 90,
-              height: 90,
-              objectFit: "cover",
-              borderRadius: 10,
-              border: "1px solid rgba(148,163,184,0.3)",
-              cursor: "pointer",
-            }}
-            onClick={() => window.open(imageSrc, "_blank")}
-          />
-        );
-      })}
-    </div>
-  </div>
-)}
-
+                  {(attachmentsList.length > 0 || isMultiLeg) && (
+                    <div className="flex items-center gap-3">
+                      {attachmentsList.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Paperclip className="w-3 h-3" style={{ color: '#667eea' }} />
+                          <span className="text-xs font-semibold" style={{ color: '#667eea' }}>
+                            {attachmentsList.length} receipt{attachmentsList.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )}
+                      {isMultiLeg && (
+                        <div className="flex items-center gap-1">
+                          <Route className="w-3 h-3" style={{ color: '#fa709a' }} />
+                          <span className="text-xs font-semibold" style={{ color: '#fa709a' }}>
+                            {legs.length} leg{legs.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </NeumorphicCard>
             );
