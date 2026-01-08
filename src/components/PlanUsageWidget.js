@@ -20,7 +20,7 @@ const formatNumber = (value, fallback = "Unlimited") =>
     : Number(value).toLocaleString();
 
 
-const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
+const API_BASE_URL = "https://geo-track-1.onrender.com";
 
 const NeumorphicCard = ({ children, className = "" }) => (
   <div

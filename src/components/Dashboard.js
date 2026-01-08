@@ -16,7 +16,7 @@ import CompanyManagementPage from './CompanyManagementPage';
 import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 
-const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
+const API_BASE_URL = "https://geo-track-1.onrender.com";
 
 const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState("analytics");

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
+const API_BASE_URL = "https://geo-track-1.onrender.com";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");

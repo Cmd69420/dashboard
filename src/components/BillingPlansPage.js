@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const PRODUCT_ID = "69589d3ba7306459dd47fd87";
-const API_BASE = "https://backup-server-q2dc.onrender.com"; // Change to your backend URL
+const API_BASE = "https://geo-track-1.onrender.com"; // Change to your backend URL
 
 export default function BillingPlansPage() {
   const [plans, setPlans] = useState([]);

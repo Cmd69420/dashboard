@@ -20,6 +20,11 @@ import {
   TrendingUp,
   Filter,
   X,
+  Crown,
+  HardDrive,
+  Zap,
+  Lock,
+  AlertTriangle,
 } from "lucide-react";
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
@@ -68,15 +73,95 @@ const StatCard = ({ title, value, subtitle, icon: Icon, gradient, onClick }) => 
   </NeumorphicCard>
 );
 
+const ProgressBar = ({ current, max, unlimited = false, color, label }) => {
+  const percentage = unlimited ? 0 : Math.min((current / max) * 100, 100);
+  const isNearLimit = percentage >= 80;
+  const isAtLimit = percentage >= 100;
+
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
+          {label}
+        </span>
+        <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
+          {current.toLocaleString()} {unlimited ? '' : `/ ${max.toLocaleString()}`}
+        </span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: '#e6eaf0' }}>
+        {!unlimited && (
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${percentage}%`,
+              background: isAtLimit 
+                ? 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)'
+                : isNearLimit 
+                ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
+                : color,
+            }}
+          />
+        )}
+      </div>
+      {unlimited ? (
+        <div className="flex items-center gap-1 mt-1">
+          <Zap className="w-3 h-3" style={{ color: '#43e97b' }} />
+          <span className="text-xs font-semibold" style={{ color: '#43e97b' }}>
+            Unlimited
+          </span>
+        </div>
+      ) : isAtLimit ? (
+        <div className="flex items-center gap-1 mt-1">
+          <AlertTriangle className="w-3 h-3" style={{ color: '#ef4444' }} />
+          <span className="text-xs font-semibold" style={{ color: '#ef4444' }}>
+            Limit Reached!
+          </span>
+        </div>
+      ) : isNearLimit ? (
+        <div className="flex items-center gap-1 mt-1">
+          <AlertCircle className="w-3 h-3" style={{ color: '#f59e0b' }} />
+          <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
+            {(max - current).toLocaleString()} remaining
+          </span>
+        </div>
+      ) : (
+        <span className="text-xs mt-1 block" style={{ color: '#94a3b8' }}>
+          {Math.floor(((max - current) / max) * 100)}% available
+        </span>
+      )}
+    </div>
+  );
+};
+
+const FeatureBadge = ({ enabled, label }) => (
+  <div 
+    className="flex items-center gap-2 p-2 rounded-lg" 
+    style={{ 
+      background: enabled ? 'rgba(67, 233, 123, 0.1)' : 'rgba(148, 163, 184, 0.1)' 
+    }}
+  >
+    {enabled ? (
+      <CheckCircle className="w-3 h-3" style={{ color: '#43e97b' }} />
+    ) : (
+      <Lock className="w-3 h-3" style={{ color: '#94a3b8' }} />
+    )}
+    <span className="text-xs font-medium" style={{ color: enabled ? '#1e293b' : '#94a3b8' }}>
+      {label}
+    </span>
+  </div>
+);
+
 const CompanyManagementPage = ({ onRefresh }) => {
   const [companies, setCompanies] = useState([]);
   const [expandedCompany, setExpandedCompany] = useState(null);
   const [companyDetails, setCompanyDetails] = useState({});
+  const [companyPlanData, setCompanyPlanData] = useState({}); // ✅ NEW: Store plan data
+  const [loadingPlan, setLoadingPlan] = useState({}); // ✅ NEW: Track loading state per company
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("companies"); // "companies" | "users" | "clients"
+  const [viewMode, setViewMode] = useState("companies");
   const [selectedCompany, setSelectedCompany] = useState(null);
 
   const token = localStorage.getItem("token");
@@ -110,7 +195,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
 
   const fetchCompanyDetails = async (companyId) => {
     if (companyDetails[companyId]) {
-      return; // Already fetched
+      return;
     }
 
     try {
@@ -138,12 +223,53 @@ const CompanyManagementPage = ({ onRefresh }) => {
     }
   };
 
+  // ✅ NEW: Fetch plan data on-demand
+  const fetchCompanyPlanData = async (companyId) => {
+    // Don't fetch if already loaded
+    if (companyPlanData[companyId]) {
+      return;
+    }
+
+    setLoadingPlan(prev => ({ ...prev, [companyId]: true }));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/plans/my-plan`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'x-company-id': companyId // Super admin can specify company
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch plan data");
+      }
+
+      const data = await response.json();
+      
+      setCompanyPlanData((prev) => ({
+        ...prev,
+        [companyId]: data,
+      }));
+
+      console.log(`✅ Loaded plan data for company ${companyId}`);
+    } catch (err) {
+      console.error(`Error fetching plan for company ${companyId}:`, err);
+      setCompanyPlanData((prev) => ({
+        ...prev,
+        [companyId]: { error: err.message },
+      }));
+    } finally {
+      setLoadingPlan(prev => ({ ...prev, [companyId]: false }));
+    }
+  };
+
   const toggleCompanyExpansion = async (company) => {
     if (expandedCompany === company.id) {
       setExpandedCompany(null);
     } else {
       setExpandedCompany(company.id);
       await fetchCompanyDetails(company.id);
+      await fetchCompanyPlanData(company.id); // ✅ NEW: Fetch plan data
     }
   };
 
@@ -162,9 +288,8 @@ const CompanyManagementPage = ({ onRefresh }) => {
   // Filter companies
   const filteredCompanies = companies.filter((company) => {
     const matchesSearch =
-  company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  company.subdomain?.toLowerCase().includes(searchTerm.toLowerCase());
-
+      company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.subdomain?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" ||
@@ -187,7 +312,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
 
     return (
       <div className="space-y-5">
-        {/* Back Button */}
         <button
           onClick={() => {
             setViewMode("companies");
@@ -205,7 +329,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
           Back to Companies
         </button>
 
-        {/* Header */}
         <NeumorphicCard>
           <div className="flex items-center gap-4">
             <div
@@ -230,7 +353,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
           </div>
         </NeumorphicCard>
 
-        {/* Users Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {users.length === 0 ? (
             <div className="col-span-full">
@@ -312,7 +434,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
 
     return (
       <div className="space-y-5">
-        {/* Back Button */}
         <button
           onClick={() => {
             setViewMode("companies");
@@ -330,7 +451,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
           Back to Companies
         </button>
 
-        {/* Header */}
         <NeumorphicCard>
           <div className="flex items-center gap-4">
             <div
@@ -355,7 +475,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
           </div>
         </NeumorphicCard>
 
-        {/* Clients Table */}
         <NeumorphicCard>
           {clients.length === 0 ? (
             <div className="text-center py-12">
@@ -494,7 +613,6 @@ const CompanyManagementPage = ({ onRefresh }) => {
 
   return (
     <div className="space-y-5">
-      {/* Error Display */}
       {error && (
         <div
           className="p-4 rounded-2xl border-l-4"
@@ -558,7 +676,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
             />
             <input
               type="text"
-              placeholder="Search companies by name, subdomain, or email..."
+              placeholder="Search companies by name or subdomain..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 text-sm font-medium transition-all"
@@ -637,318 +755,315 @@ const CompanyManagementPage = ({ onRefresh }) => {
                 setSearchTerm("");
                 setStatusFilter("all");
               }}
-              className="px-3 py-1 rounded-full text-xs font-semibold transition-all hover:scale-105"
-              style={{ background: "rgba(239, 68, 68, 0.2)", color: "#ef4444" }}
+              // FIXED - complete button with all attributes and content
+              className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+              style={{ background: "rgba(255, 255, 255, 0.1)", color: "#ffffff" }}
             >
-              Clear All
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+            // Complete the filter clear button and continue...
+
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+              }}
+              className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+              style={{
+                background: "#ecf0f3",
+                boxShadow: "2px 2px 4px rgba(163,177,198,0.4)",
+                color: "#64748b",
+              }}
+            >
+              <X className="w-3 h-3" />
+              Clear
             </button>
           </div>
         )}
-
-        <p className="text-sm mt-3" style={{ color: "#64748b" }}>
-          Showing{" "}
-          <span className="font-semibold" style={{ color: "#1e293b" }}>
-            {filteredCompanies.length}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold" style={{ color: "#1e293b" }}>
-            {totalCompanies}
-          </span>{" "}
-          companies
-        </p>
       </NeumorphicCard>
 
       {/* Companies List */}
-      {loading ? (
-        <NeumorphicCard>
-          <div className="text-center py-12">
-            <div
-              className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4"
-              style={{
-                background: "#e6eaf0",
-                boxShadow: "inset 8px 8px 16px #c5c8cf, inset -8px -8px 16px #ffffff",
-              }}
-            >
-              <RefreshCw className="w-8 h-8 animate-spin" style={{ color: "#667eea" }} />
+      <div className="space-y-4">
+        {loading && filteredCompanies.length === 0 ? (
+          <NeumorphicCard>
+            <div className="text-center py-12">
+              <RefreshCw className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: "#667eea" }} />
+              <p className="text-lg font-semibold" style={{ color: "#64748b" }}>
+                Loading companies...
+              </p>
             </div>
-            <p style={{ color: "#64748b" }}>Loading companies...</p>
-          </div>
-        </NeumorphicCard>
-      ) : filteredCompanies.length === 0 ? (
-        <NeumorphicCard>
-          <div className="text-center py-12">
-            <Building2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#cbd5e1" }} />
-            <h3 className="text-xl font-semibold mb-2" style={{ color: "#1e293b" }}>
-              No companies found
-            </h3>
-            <p style={{ color: "#64748b" }}>
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your filters"
-                : "No companies have been created yet"}
-            </p>
-          </div>
-        </NeumorphicCard>
-      ) : (
-        <div className="space-y-4">
-          {filteredCompanies.map((company) => {
+          </NeumorphicCard>
+        ) : filteredCompanies.length === 0 ? (
+          <NeumorphicCard>
+            <div className="text-center py-12">
+              <Building2 className="w-16 h-16 mx-auto mb-4" style={{ color: "#cbd5e1" }} />
+              <h3 className="text-xl font-semibold mb-2" style={{ color: "#1e293b" }}>
+                No companies found
+              </h3>
+              <p style={{ color: "#64748b" }}>
+                {searchTerm || statusFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "No companies have been created yet"}
+              </p>
+            </div>
+          </NeumorphicCard>
+        ) : (
+          filteredCompanies.map((company) => {
             const isExpanded = expandedCompany === company.id;
             const details = companyDetails[company.id];
+            const planData = companyPlanData[company.id];
+            const isPlanLoading = loadingPlan[company.id];
 
             return (
-              <NeumorphicCard key={company.id} className="hover:shadow-xl transition-all">
+              <NeumorphicCard key={company.id} className="overflow-hidden">
                 {/* Company Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div
-                      className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: company.is_active
-                          ? "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
-                          : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)",
-                        boxShadow: "3px 3px 6px rgba(0,0,0,0.15)",
-                      }}
-                    >
-                      <Building2 className="w-8 h-8 text-white" />
+                <div
+                  className="flex items-center gap-4 cursor-pointer"
+                  onClick={() => toggleCompanyExpansion(company)}
+                >
+                  <div
+                    className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: company.is_active
+                        ? "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+                        : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)",
+                      boxShadow: "3px 3px 6px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    <Building2 className="w-8 h-8 text-white" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-xl font-bold truncate" style={{ color: "#1e293b" }}>
+                        {company.name}
+                      </h3>
+                      {company.is_active ? (
+                        <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#43e97b" }} />
+                      ) : (
+                        <XCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#ef4444" }} />
+                      )}
                     </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="flex items-center gap-1" style={{ color: "#64748b" }}>
+                        <Globe className="w-4 h-4" />
+                        {company.subdomain}
+                      </span>
+                      <span style={{ color: "#cbd5e1" }}>•</span>
+                      <span style={{ color: "#64748b" }}>
+                        Created {new Date(company.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold" style={{ color: "#1e293b" }}>
-                          {company.name}
-                        </h3>
-                        <span
-                          className="px-3 py-1 rounded-full text-xs font-semibold"
-                          style={{
-                            background: company.is_active
-                              ? "rgba(67, 233, 123, 0.2)"
-                              : "rgba(148, 163, 184, 0.2)",
-                            color: company.is_active ? "#43e97b" : "#64748b",
-                          }}
-                        >
-                          {company.is_active ? "Active" : "Inactive"}
-                        </span>
+                  {/* Quick Stats */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold" style={{ color: "#667eea" }}>
+                        {company.user_count || 0}
                       </div>
+                      <div className="text-xs" style={{ color: "#94a3b8" }}>
+                        Users
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold" style={{ color: "#fa709a" }}>
+                        {company.client_count || 0}
+                      </div>
+                      <div className="text-xs" style={{ color: "#94a3b8" }}>
+                        Clients
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold" style={{ color: "#43e97b" }}>
+                        {company.service_count || 0}
+                      </div>
+                      <div className="text-xs" style={{ color: "#94a3b8" }}>
+                        Services
+                      </div>
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4" style={{ color: "#667eea" }} />
-                          <span style={{ color: "#64748b" }}>@{company.subdomain}</span>
-                        </div>
-                      
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" style={{ color: "#94a3b8" }} />
-                          <span style={{ color: "#64748b" }}>
-                            Created: {new Date(company.created_at).toLocaleDateString()}
+                  {/* Expand Icon */}
+                  <div className="flex-shrink-0">
+                    {isExpanded ? (
+                      <ChevronDown className="w-6 h-6" style={{ color: "#667eea" }} />
+                    ) : (
+                      <ChevronRight className="w-6 h-6" style={{ color: "#94a3b8" }} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded Content - Lazy Loaded */}
+                {isExpanded && (
+                  <div className="mt-6 pt-6" style={{ borderTop: "2px solid rgba(148, 163, 184, 0.2)" }}>
+                    {/* Plan Information Section - Loaded on Demand */}
+                    {isPlanLoading ? (
+                      <div className="mb-6 p-6 rounded-xl" style={{ background: "rgba(102, 126, 234, 0.05)" }}>
+                        <div className="flex items-center justify-center gap-3">
+                          <RefreshCw className="w-5 h-5 animate-spin" style={{ color: "#667eea" }} />
+                          <span className="text-sm font-medium" style={{ color: "#667eea" }}>
+                            Loading plan information...
                           </span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => toggleCompanyExpansion(company)}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105"
-                    style={{
-                      background: "#ecf0f3",
-                      boxShadow:
-                        "3px 3px 6px rgba(163,177,198,0.4), -3px -3px 6px rgba(255,255,255, 0.8)",
-                    }}
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5" style={{ color: "#667eea" }} />
-                    ) : (
-                      <ChevronRight className="w-5 h-5" style={{ color: "#667eea" }} />
-                    )}
-                  </button>
-                </div>
-
-                {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-3 mt-4">
-                  <div
-                    className="p-3 rounded-xl cursor-pointer hover:shadow-lg transition-all"
-                    style={{ background: "rgba(102, 126, 234, 0.1)" }}
-                    onClick={() => showCompanyUsers(company)}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Users className="w-4 h-4" style={{ color: "#667eea" }} />
-                      <p className="text-xs font-medium" style={{ color: "#667eea" }}>
-                        Users
-                      </p>
-                    </div>
-                    <p className="text-xl font-bold" style={{ color: "#1e293b" }}>
-                      {company.user_count || 0}
-                    </p>
-                  </div>
-
-                  <div
-                    className="p-3 rounded-xl cursor-pointer hover:shadow-lg transition-all"
-                    style={{ background: "rgba(67, 233, 123, 0.1)" }}
-                    onClick={() => showCompanyClients(company)}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <FileText className="w-4 h-4" style={{ color: "#43e97b" }} />
-                      <p className="text-xs font-medium" style={{ color: "#43e97b" }}>
-                        Clients
-                      </p>
-                    </div>
-                    <p className="text-xl font-bold" style={{ color: "#1e293b" }}>
-                      {company.client_count || 0}
-                    </p>
-                  </div>
-
-                  <div
-                    className="p-3 rounded-xl"
-                    style={{ background: "rgba(240, 147, 251, 0.1)" }}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Package className="w-4 h-4" style={{ color: "#f093fb" }} />
-                      <p className="text-xs font-medium" style={{ color: "#f093fb" }}>
-                        Services
-                      </p>
-                    </div>
-                    <p className="text-xl font-bold" style={{ color: "#1e293b" }}>
-                      {company.service_count || 0}
-                    </p>
-                  </div>
-
-                  <div
-                    className="p-3 rounded-xl"
-                    style={{ background: "rgba(79, 172, 254, 0.1)" }}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className="w-4 h-4" style={{ color: "#4facfe" }} />
-                      <p className="text-xs font-medium" style={{ color: "#4facfe" }}>
-                        Activity
-                      </p>
-                    </div>
-                    <p className="text-xl font-bold" style={{ color: "#1e293b" }}>
-                      {company.log_count || 0}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4" style={{ borderTop: "1px solid rgba(148, 163, 184, 0.2)" }}>
-                    {!details ? (
-                      <div className="text-center py-6">
-                        <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" style={{ color: "#667eea" }} />
-                        <p className="text-sm" style={{ color: "#64748b" }}>Loading details...</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Quick Actions */}
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => showCompanyUsers(company)}
-                            className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
-                            style={{
-                              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                              color: "white",
-                              boxShadow: "4px 4px 8px rgba(102, 126, 234, 0.4)",
-                            }}
-                          >
-                            <Users className="w-4 h-4" />
-                            View All Users
-                          </button>
-                          <button
-                            onClick={() => showCompanyClients(company)}
-                            className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
-                            style={{
-                              background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-                              color: "white",
-                              boxShadow: "4px 4px 8px rgba(67, 233, 123, 0.4)",
-                            }}
-                          >
-                            <FileText className="w-4 h-4" />
-                            View All Clients
-                          </button>
+                    ) : planData && !planData.error ? (
+                      <div className="mb-6">
+                        {/* Plan Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center"
+                              style={{
+                                background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                                boxShadow: "2px 2px 4px rgba(0,0,0,0.15)",
+                              }}
+                            >
+                              <Crown className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold" style={{ color: "#1e293b" }}>
+                                {planData.plan?.name || "No Plan"}
+                              </h4>
+                              <p className="text-xs" style={{ color: "#64748b" }}>
+                                Current subscription plan
+                              </p>
+                            </div>
+                          </div>
+                          {planData.plan?.price && (
+                            <div className="text-right">
+                              <div className="text-2xl font-bold" style={{ color: "#667eea" }}>
+                                ${planData.plan.price}
+                              </div>
+                              <div className="text-xs" style={{ color: "#94a3b8" }}>
+                                per month
+                              </div>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Recent Users Preview */}
-                        {details.users && details.users.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-bold mb-3" style={{ color: "#1e293b" }}>
-                              Recent Users ({details.users.length})
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {details.users.slice(0, 4).map((user) => (
-                                <div
-                                  key={user.id}
-                                  className="flex items-center gap-2 p-2 rounded-lg"
-                                  style={{ background: "rgba(102, 126, 234, 0.05)" }}
-                                >
-                                  <div
-                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                                    style={{
-                                      background: user.is_admin
-                                        ? "linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
-                                        : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                    }}
-                                  >
-                                    {(user.full_name || user.email || "").substring(0, 2).toUpperCase()}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold truncate" style={{ color: "#1e293b" }}>
-                                      {user.full_name || "No name"}
-                                    </p>
-                                    <p className="text-xs truncate" style={{ color: "#64748b" }}>
-                                      {user.email}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                        {/* Usage Stats */}
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div className="p-4 rounded-xl" style={{ background: "rgba(102, 126, 234, 0.05)" }}>
+                            <ProgressBar
+                              current={planData.usage?.users || 0}
+                              max={planData.limits?.users || 0}
+                              unlimited={planData.limits?.users === -1}
+                              color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                              label="Users"
+                            />
                           </div>
-                        )}
+                          <div className="p-4 rounded-xl" style={{ background: "rgba(67, 233, 123, 0.05)" }}>
+                            <ProgressBar
+                              current={planData.usage?.clients || 0}
+                              max={planData.limits?.clients || 0}
+                              unlimited={planData.limits?.clients === -1}
+                              color="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+                              label="Clients"
+                            />
+                          </div>
+                          <div className="p-4 rounded-xl" style={{ background: "rgba(250, 112, 154, 0.05)" }}>
+                            <ProgressBar
+                              current={planData.usage?.services || 0}
+                              max={planData.limits?.services || 0}
+                              unlimited={planData.limits?.services === -1}
+                              color="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
+                              label="Services"
+                            />
+                          </div>
+                          <div className="p-4 rounded-xl" style={{ background: "rgba(79, 172, 254, 0.05)" }}>
+                            <ProgressBar
+                              current={planData.usage?.storage_mb || 0}
+                              max={planData.limits?.storage_mb || 0}
+                              unlimited={planData.limits?.storage_mb === -1}
+                              color="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+                              label="Storage (MB)"
+                            />
+                          </div>
+                        </div>
 
-                        {/* Recent Clients Preview */}
-                        {details.clients && details.clients.length > 0 && (
+                        {/* Features */}
+                        {planData.plan?.features && (
                           <div>
-                            <h4 className="text-sm font-bold mb-3" style={{ color: "#1e293b" }}>
-                              Recent Clients ({details.clients.length})
-                            </h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {details.clients.slice(0, 4).map((client) => (
-                                <div
-                                  key={client.id}
-                                  className="flex items-center gap-2 p-2 rounded-lg"
-                                  style={{ background: "rgba(67, 233, 123, 0.05)" }}
-                                >
-                                  <div
-                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                                    style={{
-                                      background: client.status === "active"
-                                        ? "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
-                                        : "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)",
-                                    }}
-                                  >
-                                    {(client.name || "").substring(0, 2).toUpperCase()}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold truncate" style={{ color: "#1e293b" }}>
-                                      {client.name}
-                                    </p>
-                                    <p className="text-xs truncate" style={{ color: "#64748b" }}>
-                                      {client.email || client.phone || "No contact"}
-                                    </p>
-                                  </div>
-                                </div>
+                            <h5 className="text-sm font-semibold mb-3" style={{ color: "#64748b" }}>
+                              PLAN FEATURES
+                            </h5>
+                            <div className="grid grid-cols-3 gap-2">
+                              {Object.entries(planData.plan.features).map(([key, enabled]) => (
+                                <FeatureBadge
+                                  key={key}
+                                  enabled={enabled}
+                                  label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                />
                               ))}
                             </div>
                           </div>
                         )}
                       </div>
-                    )}
+                    ) : planData?.error ? (
+                      <div className="mb-6 p-4 rounded-xl" style={{ background: "rgba(239, 68, 68, 0.1)" }}>
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5" style={{ color: "#ef4444" }} />
+                          <span className="text-sm font-medium" style={{ color: "#ef4444" }}>
+                            Failed to load plan data: {planData.error}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showCompanyUsers(company);
+                        }}
+                        className="px-4 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
+                        style={{
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "white",
+                          boxShadow: "4px 4px 8px rgba(102, 126, 234, 0.4)",
+                        }}
+                      >
+                        <Users className="w-4 h-4" />
+                        View All Users ({details?.users?.length || 0})
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showCompanyClients(company);
+                        }}
+                        className="px-4 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
+                        style={{
+                          background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+                          color: "white",
+                          boxShadow: "4px 4px 8px rgba(250, 112, 154, 0.4)",
+                        }}
+                      >
+                        <FileText className="w-4 h-4" />
+                        View All Clients ({details?.clients?.length || 0})
+                      </button>
+                    </div>
                   </div>
                 )}
               </NeumorphicCard>
             );
-          })}
+          })
+        )}
+      </div>
+
+      {/* Results Summary */}
+      {!loading && filteredCompanies.length > 0 && (
+        <div className="text-center">
+          <p className="text-sm" style={{ color: "#94a3b8" }}>
+            Showing {filteredCompanies.length} of {totalCompanies} companies
+          </p>
         </div>
       )}
     </div>
   );
 };
 
-export default CompanyManagementPage
+export default CompanyManagementPage;
