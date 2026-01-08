@@ -63,7 +63,7 @@ const ClientsPage = ({
     const fetchAllClients = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch('https://geo-track-1.onrender.com/admin/clients?limit=10000', {
+        const response = await fetch('https://backup-server-q2dc.onrender.com/admin/clients?limit=10000', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();

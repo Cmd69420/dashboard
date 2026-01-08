@@ -16,7 +16,7 @@ import {
   Package
 } from "lucide-react";
 
-const API_BASE_URL = "https://geo-track-1.onrender.com";
+const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
 const NeumorphicCard = ({ children, className = "" }) => (
   <div
