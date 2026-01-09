@@ -930,7 +930,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
                             </div>
                             <div>
                               <h4 className="text-lg font-bold" style={{ color: "#1e293b" }}>
-                              {planData.plan?.displayName || planData.planName || "No Plan"}
+                              {planData.plan?.displayName || "No Plan"}
                             </h4>
                             <p className="text-xs" style={{ color: "#64748b" }}>
                               Current subscription plan
@@ -952,23 +952,23 @@ const CompanyManagementPage = ({ onRefresh }) => {
                         {/* Usage Stats */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="p-4 rounded-xl" style={{ background: "rgba(102, 126, 234, 0.05)" }}>
-                            <ProgressBar
-                              current={planData.usage?.users?.current || 0}
-                              max={planData.usage?.users?.max || 0}
-                              unlimited={!planData.usage?.users?.max}
-                              color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                              label="Users"
-                            />
-                          </div>
+                          <ProgressBar
+                            current={planData.usage?.users?.current || 0}
+                            max={planData.usage?.users?.max || 0}
+                            unlimited={!planData.usage?.users?.max}
+                            color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                            label="Users"
+                          />
+                        </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(67, 233, 123, 0.05)" }}>
-                            <ProgressBar
-                              current={planData.usage?.clients?.current || 0}
-                              max={planData.usage?.clients?.max || 0}
-                              unlimited={planData.usage?.clients?.unlimited || !planData.usage?.clients?.max}
-                              color="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
-                              label="Clients"
-                            />
-                          </div>
+                          <ProgressBar
+                            current={planData.usage?.clients?.current || 0}
+                            max={planData.usage?.clients?.max || 0}
+                            unlimited={planData.usage?.clients?.unlimited || !planData.usage?.clients?.max}
+                            color="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+                            label="Clients"
+                          />
+                        </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(250, 112, 154, 0.05)" }}>
                             <div className="flex justify-between items-center mb-2">
                               <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
@@ -988,11 +988,14 @@ const CompanyManagementPage = ({ onRefresh }) => {
                                 Storage
                               </span>
                               <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
-                                {planData.plan?.limits?.storage?.maxGB || "∞"} GB
+                                {((planData.usage?.storage_used_mb || 0) / 1024).toFixed(2)} GB
+                                {planData.plan?.limits?.storage?.maxGB && 
+                                  ` / ${planData.plan.limits.storage.maxGB} GB`
+                                }
                               </span>
                             </div>
                             <div className="text-xs" style={{ color: "#94a3b8" }}>
-                              {planData.plan?.limits?.storage?.maxGB ? "Limited" : "Unlimited"}
+                              {(((planData.usage?.storage_used_mb || 0) / (planData.plan.limits.storage.maxGB * 1024)) * 100).toFixed(1)}% used
                             </div>
                           </div>
                         </div>
