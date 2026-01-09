@@ -245,6 +245,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
       }
 
       const data = await response.json();
+      console.log('📊 Plan data received for company', companyId, ':', JSON.stringify(data, null, 2));
       
       setCompanyPlanData((prev) => ({
         ...prev,
