@@ -984,21 +984,30 @@ const CompanyManagementPage = ({ onRefresh }) => {
                             </div>
                           </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(79, 172, 254, 0.05)" }}>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
-                                Storage
-                              </span>
-                              <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
-                                {((planData.usage?.storage_used_mb || 0) / 1024).toFixed(2)} GB
-                                {planData.plan?.limits?.storage?.maxGB && 
-                                  ` / ${planData.plan.limits.storage.maxGB} GB`
-                                }
-                              </span>
-                            </div>
-                            <div className="text-xs" style={{ color: "#94a3b8" }}>
-                              {(((planData.usage?.storage_used_mb || 0) / (planData.plan.limits.storage.maxGB * 1024)) * 100).toFixed(1)}% used
-                            </div>
-                          </div>
+  <div className="flex justify-between items-center mb-2">
+    <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
+      Storage
+    </span>
+    <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
+      {(parseFloat(planData.usage?.storage_used_mb || 0) / 1024).toFixed(3)} GB
+      {planData.plan?.limits?.storage?.maxGB && 
+        ` / ${planData.plan.limits.storage.maxGB} GB`
+      }
+    </span>
+  </div>
+  <div className="h-2 rounded-full overflow-hidden" style={{ background: '#e6eaf0' }}>
+    <div
+      className="h-full transition-all duration-500"
+      style={{
+        width: `${Math.min(((parseFloat(planData.usage?.storage_used_mb || 0) / 1024) / (planData.plan?.limits?.storage?.maxGB || 1)) * 100, 100)}%`,
+        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      }}
+    />
+  </div>
+  <div className="text-xs mt-1" style={{ color: "#94a3b8" }}>
+    {(((parseFloat(planData.usage?.storage_used_mb || 0) / 1024) / (planData.plan?.limits?.storage?.maxGB || 1)) * 100).toFixed(1)}% used
+  </div>
+</div>
                         </div>
 
                         {/* Features */}
