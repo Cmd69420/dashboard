@@ -280,19 +280,38 @@ const PlanUsageWidget = () => {
           </div>
 
           {/* Storage */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <HardDrive className="w-4 h-4" style={{ color: '#4facfe' }} />
-              <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                Cloud Storage
-              </span>
-            </div>
-            <div className="text-sm" style={{ color: '#64748b' }}>
-              {plan.limits.storage.maxGB === null
-  ? "Unlimited storage"
-  : `${plan.limits.storage.maxGB} GB available`}
-            </div>
-          </div>
+          {/* Storage */}
+<div>
+  <div className="flex items-center gap-2 mb-2">
+    <HardDrive className="w-4 h-4" style={{ color: '#4facfe' }} />
+    <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+      Cloud Storage
+    </span>
+  </div>
+  <ProgressBar 
+    current={parseFloat(usage?.storage_used_mb || 0)}
+    max={plan.limits.storage.maxGB ? plan.limits.storage.maxGB * 1024 : 0}
+    unlimited={plan.limits.storage.maxGB === null}
+    color="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+  />
+  <div className="text-xs mt-2" style={{ color: '#64748b' }}>
+    {(() => {
+      const usedMB = parseFloat(usage?.storage_used_mb || 0);
+      const maxGB = plan.limits.storage.maxGB;
+      
+      if (maxGB === null) {
+        return "Unlimited storage";
+      }
+      
+      // Show MB if less than 100 MB, otherwise show GB
+      if (usedMB < 100) {
+        return `${usedMB.toFixed(2)} MB used of ${maxGB} GB`;
+      } else {
+        return `${(usedMB / 1024).toFixed(2)} GB used of ${maxGB} GB`;
+      }
+    })()}
+  </div>
+</div>
         </div>
       </NeumorphicCard>
 
