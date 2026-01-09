@@ -303,8 +303,14 @@ const CompanyManagementPage = ({ onRefresh }) => {
   const totalCompanies = companies.length;
   const activeCompanies = companies.filter((c) => c.is_active).length;
   const inactiveCompanies = totalCompanies - activeCompanies;
-  const totalUsers = companies.reduce((sum, c) => sum + (c.user_count || 0), 0);
-  const totalClients = companies.reduce((sum, c) => sum + (c.client_count || 0), 0);
+  const totalUsers = companies.reduce((sum, c) => {
+    const count = Number(c.user_count) || 0;
+    return sum + count;
+  }, 0);
+  const totalClients = companies.reduce((sum, c) => {
+    const count = Number(c.client_count) || 0;
+    return sum + count;
+  }, 0);
 
   if (viewMode === "users" && selectedCompany) {
     const details = companyDetails[selectedCompany.id];
