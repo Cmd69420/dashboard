@@ -989,10 +989,18 @@ const CompanyManagementPage = ({ onRefresh }) => {
       Storage
     </span>
     <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
-      {(parseFloat(planData.usage?.storage_used_mb || 0) / 1024).toFixed(3)} GB
-      {planData.plan?.limits?.storage?.maxGB && 
-        ` / ${planData.plan.limits.storage.maxGB} GB`
-      }
+      {(() => {
+        const usedMB = parseFloat(planData.usage?.storage_used_mb || 0);
+        const maxGB = planData.plan?.limits?.storage?.maxGB || 0;
+        const usedGB = usedMB / 1024;
+        
+        // Show MB if less than 100 MB, otherwise show GB
+        if (usedMB < 100) {
+          return `${usedMB.toFixed(2)} MB / ${maxGB} GB`;
+        } else {
+          return `${usedGB.toFixed(2)} GB / ${maxGB} GB`;
+        }
+      })()}
     </span>
   </div>
   <div className="h-2 rounded-full overflow-hidden" style={{ background: '#e6eaf0' }}>
@@ -1005,7 +1013,7 @@ const CompanyManagementPage = ({ onRefresh }) => {
     />
   </div>
   <div className="text-xs mt-1" style={{ color: "#94a3b8" }}>
-    {(((parseFloat(planData.usage?.storage_used_mb || 0) / 1024) / (planData.plan?.limits?.storage?.maxGB || 1)) * 100).toFixed(1)}% used
+    {(((parseFloat(planData.usage?.storage_used_mb || 0) / 1024) / (planData.plan?.limits?.storage?.maxGB || 1)) * 100).toFixed(2)}% used
   </div>
 </div>
                         </div>
