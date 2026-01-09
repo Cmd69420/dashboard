@@ -930,82 +930,92 @@ const CompanyManagementPage = ({ onRefresh }) => {
                             </div>
                             <div>
                               <h4 className="text-lg font-bold" style={{ color: "#1e293b" }}>
-                                {planData.plan?.name || "No Plan"}
-                              </h4>
-                              <p className="text-xs" style={{ color: "#64748b" }}>
-                                Current subscription plan
-                              </p>
+                              {planData.plan?.displayName || planData.planName || "No Plan"}
+                            </h4>
+                            <p className="text-xs" style={{ color: "#64748b" }}>
+                              Current subscription plan
+                            </p>
                             </div>
                           </div>
-                          {planData.plan?.price && (
-                            <div className="text-right">
-                              <div className="text-2xl font-bold" style={{ color: "#667eea" }}>
-                                ${planData.plan.price}
-                              </div>
-                              <div className="text-xs" style={{ color: "#94a3b8" }}>
-                                per month
-                              </div>
+                          {planData.plan?.priceINR && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold" style={{ color: "#667eea" }}>
+                              ₹{planData.plan.priceINR.toLocaleString()}
                             </div>
-                          )}
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>
+                              per month
+                            </div>
+                          </div>
+                        )}
                         </div>
 
                         {/* Usage Stats */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="p-4 rounded-xl" style={{ background: "rgba(102, 126, 234, 0.05)" }}>
                             <ProgressBar
-                              current={planData.usage?.users || 0}
-                              max={planData.limits?.users || 0}
-                              unlimited={planData.limits?.users === -1}
+                              current={planData.usage?.users?.current || 0}
+                              max={planData.usage?.users?.max || 0}
+                              unlimited={!planData.usage?.users?.max}
                               color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
                               label="Users"
                             />
                           </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(67, 233, 123, 0.05)" }}>
                             <ProgressBar
-                              current={planData.usage?.clients || 0}
-                              max={planData.limits?.clients || 0}
-                              unlimited={planData.limits?.clients === -1}
+                              current={planData.usage?.clients?.current || 0}
+                              max={planData.usage?.clients?.max || 0}
+                              unlimited={planData.usage?.clients?.unlimited || !planData.usage?.clients?.max}
                               color="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
                               label="Clients"
                             />
                           </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(250, 112, 154, 0.05)" }}>
-                            <ProgressBar
-                              current={planData.usage?.services || 0}
-                              max={planData.limits?.services || 0}
-                              unlimited={planData.limits?.services === -1}
-                              color="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
-                              label="Services"
-                            />
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
+                                Services
+                              </span>
+                              <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
+                                {planData.usage?.services || 0}
+                              </span>
+                            </div>
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>
+                              {planData.plan?.features?.services ? "Enabled" : "Disabled"}
+                            </div>
                           </div>
                           <div className="p-4 rounded-xl" style={{ background: "rgba(79, 172, 254, 0.05)" }}>
-                            <ProgressBar
-                              current={planData.usage?.storage_mb || 0}
-                              max={planData.limits?.storage_mb || 0}
-                              unlimited={planData.limits?.storage_mb === -1}
-                              color="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
-                              label="Storage (MB)"
-                            />
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-semibold" style={{ color: "#64748b" }}>
+                                Storage
+                              </span>
+                              <span className="text-xs font-bold" style={{ color: "#1e293b" }}>
+                                {planData.plan?.limits?.storage?.maxGB || "∞"} GB
+                              </span>
+                            </div>
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>
+                              {planData.plan?.limits?.storage?.maxGB ? "Limited" : "Unlimited"}
+                            </div>
                           </div>
                         </div>
 
                         {/* Features */}
                         {planData.plan?.features && (
-                          <div>
-                            <h5 className="text-sm font-semibold mb-3" style={{ color: "#64748b" }}>
-                              PLAN FEATURES
-                            </h5>
-                            <div className="grid grid-cols-3 gap-2">
-                              {Object.entries(planData.plan.features).map(([key, enabled]) => (
-                                <FeatureBadge
-                                  key={key}
-                                  enabled={enabled}
-                                  label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                />
-                              ))}
-                            </div>
+                        <div>
+                          <h5 className="text-sm font-semibold mb-3" style={{ color: "#64748b" }}>
+                            PLAN FEATURES
+                          </h5>
+                          <div className="grid grid-cols-3 gap-2">
+                            <FeatureBadge enabled={planData.plan.features.services} label="Client Services" />
+                            <FeatureBadge enabled={planData.plan.features.tallySync} label="Tally Sync" />
+                            <FeatureBadge enabled={planData.plan.features.apiAccess} label="API Access" />
+                            <FeatureBadge enabled={planData.plan.features.advancedAnalytics} label="Advanced Analytics" />
+                            <FeatureBadge enabled={planData.plan.features.customReports} label="Custom Reports" />
+                            <FeatureBadge enabled={planData.plan.features.interactiveMaps} label="Interactive Maps" />
+                            <FeatureBadge enabled={planData.plan.features.bulkOperations} label="Bulk Operations" />
+                            <FeatureBadge enabled={planData.plan.features.whiteLabel} label="White Label" />
+                            <FeatureBadge enabled={planData.plan.features.expenses} label="Expenses" />
                           </div>
-                        )}
+                        </div>
+                      )}
                       </div>
                     ) : planData?.error ? (
                       <div className="mb-6 p-4 rounded-xl" style={{ background: "rgba(239, 68, 68, 0.1)" }}>
