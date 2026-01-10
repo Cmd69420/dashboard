@@ -83,128 +83,6 @@ const InsightCard = ({ icon: Icon, gradient, title, value, subtitle }) => (
   </NeumorphicCard>
 );
 
-// Enhanced 3D Pie Cell Component with dramatic depth
-const Render3DPieCell = (props) => {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
-  
-  const RADIAN = Math.PI / 180;
-  
-  // Increased depth for more dramatic 3D effect
-  const depth = 20;
-  
-  // Calculate points for outer arc
-  const startOuterX = cx + outerRadius * Math.cos(-startAngle * RADIAN);
-  const startOuterY = cy + outerRadius * Math.sin(-startAngle * RADIAN);
-  const endOuterX = cx + outerRadius * Math.cos(-endAngle * RADIAN);
-  const endOuterY = cy + outerRadius * Math.sin(-endAngle * RADIAN);
-  
-  // Calculate points for inner arc
-  const startInnerX = cx + innerRadius * Math.cos(-startAngle * RADIAN);
-  const startInnerY = cy + innerRadius * Math.sin(-startAngle * RADIAN);
-  const endInnerX = cx + innerRadius * Math.cos(-endAngle * RADIAN);
-  const endInnerY = cy + innerRadius * Math.sin(-endAngle * RADIAN);
-  
-  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-  
-  // Determine if this slice faces toward the viewer (bottom half)
-  const midAngle = (startAngle + endAngle) / 2;
-  const showSide = midAngle > 0 && midAngle < 180;
-  
-  return (
-    <g>
-      <defs>
-        {/* Top surface gradient - lighter at top */}
-        <linearGradient id={`top-gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={fill} stopOpacity="1" style={{ filter: 'brightness(1.3)' }} />
-          <stop offset="100%" stopColor={fill} stopOpacity="1" />
-        </linearGradient>
-        
-        {/* Side surface - darker */}
-        <linearGradient id={`side-gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={fill} stopOpacity="0.7" />
-          <stop offset="100%" stopColor={fill} stopOpacity="0.4" />
-        </linearGradient>
-        
-        <filter id={`shadow-3d-${fill}-${startAngle}`}>
-          <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-          <feOffset dx="2" dy="3" result="offsetblur"/>
-          <feFlood floodColor="#000000" floodOpacity="0.3"/>
-          <feComposite in2="offsetblur" operator="in"/>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-      
-      {/* Outer side wall (only visible for bottom-facing slices) */}
-      {showSide && (
-        <path
-          d={`M ${startOuterX} ${startOuterY}
-              L ${startOuterX} ${startOuterY + depth}
-              A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${endOuterX} ${endOuterY + depth}
-              L ${endOuterX} ${endOuterY}
-              A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${startOuterX} ${startOuterY}
-              Z`}
-          fill={`url(#side-gradient-${fill}-${startAngle})`}
-          opacity="0.8"
-        />
-      )}
-      
-      {/* Inner side wall (donut hole depth) */}
-      {showSide && (
-        <path
-          d={`M ${startInnerX} ${startInnerY}
-              L ${startInnerX} ${startInnerY + depth}
-              A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${endInnerX} ${endInnerY + depth}
-              L ${endInnerX} ${endInnerY}
-              A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${startInnerX} ${startInnerY}
-              Z`}
-          fill={fill}
-          opacity="0.3"
-        />
-      )}
-      
-      {/* Right edge face */}
-      {showSide && (
-        <path
-          d={`M ${endOuterX} ${endOuterY}
-              L ${endOuterX} ${endOuterY + depth}
-              L ${endInnerX} ${endInnerY + depth}
-              L ${endInnerX} ${endInnerY}
-              Z`}
-          fill={fill}
-          opacity="0.6"
-        />
-      )}
-      
-      {/* Left edge face */}
-      {showSide && (
-        <path
-          d={`M ${startOuterX} ${startOuterY}
-              L ${startOuterX} ${startOuterY + depth}
-              L ${startInnerX} ${startInnerY + depth}
-              L ${startInnerX} ${startInnerY}
-              Z`}
-          fill={fill}
-          opacity="0.6"
-        />
-      )}
-      
-      {/* Top surface with enhanced lighting */}
-      <path
-        d={`M ${startOuterX} ${startOuterY}
-            A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${endOuterX} ${endOuterY}
-            L ${endInnerX} ${endInnerY}
-            A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${startInnerX} ${startInnerY}
-            Z`}
-        fill={`url(#top-gradient-${fill}-${startAngle})`}
-        filter={`url(#shadow-3d-${fill}-${startAngle})`}
-      />
-    </g>
-  );
-};
-
 const AnalyticsPage = ({
   analyticsData,
   syncStatus,
@@ -412,21 +290,13 @@ const AnalyticsPage = ({
                 dataKey="value"
                 innerRadius={45}
                 outerRadius={70}
-                paddingAngle={3}
-                shape={<Render3DPieCell />}
+                paddingAngle={5}
               >
                 {clientStatusData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{
-                  background: '#ecf0f3',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
-                }}
-              />
+              <Tooltip />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -443,21 +313,13 @@ const AnalyticsPage = ({
                 dataKey="value"
                 innerRadius={45}
                 outerRadius={70}
-                paddingAngle={3}
-                shape={<Render3DPieCell />}
+                paddingAngle={5}
               >
                 {gpsStatusData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{
-                  background: '#ecf0f3',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
-                }}
-              />
+              <Tooltip />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -471,15 +333,8 @@ const AnalyticsPage = ({
             <BarChart data={topAreasData} layout="vertical">
               <XAxis type="number" />
               <YAxis type="category" dataKey="area" />
-              <Tooltip 
-                contentStyle={{
-                  background: '#ecf0f3',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
-                }}
-              />
-              <Bar dataKey="clients" fill="#667eea" radius={[0, 8, 8, 0]} />
+              <Tooltip />
+              <Bar dataKey="clients" fill="#667eea" />
             </BarChart>
           </ResponsiveContainer>
         </NeumorphicCard>
