@@ -1,123 +1,95 @@
 import React from "react";
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
+  ResponsiveContainer, Tooltip, Legend
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Users, Activity, MapPin, Target, Clock,
-  AlertCircle, Award, AlertTriangle, CheckCircle, Sparkles
+  AlertCircle, Award, AlertTriangle, CheckCircle, ChevronRight
 } from "lucide-react";
 
-// Soft neumorphic card like the reference image
-const SoftCard = ({ children, className = "", noPadding = false }) => (
+// Soft neumorphic card
+const NeuCard = ({ children, className = "", pressed = false }) => (
   <div
-    className={`${noPadding ? '' : 'p-6'} rounded-3xl ${className}`}
+    className={`rounded-3xl ${className}`}
     style={{
-      background: '#f0f4f8',
-      boxShadow: '8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff',
+      background: '#E0E5EC',
+      boxShadow: pressed 
+        ? 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)'
+        : '9px 9px 16px rgba(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5)',
     }}
   >
     {children}
   </div>
 );
 
-// Main metric card with soft shadows
-const MetricCard = ({ title, value, change, isPositive, icon: Icon, iconBg }) => (
-  <SoftCard>
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2" 
-           style={{ color: '#a0aec0' }}>
-          {title}
-        </p>
-        <h3 className="text-5xl font-black mb-3" style={{ color: '#2d3748' }}>
-          {typeof value === "number" ? value.toLocaleString() : value}
-        </h3>
-        {change !== undefined && (
-          <div 
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl"
-            style={{
-              background: isPositive ? '#d4f4dd' : '#ffd4d4',
-            }}
-          >
-            {isPositive ? (
-              <TrendingUp className="w-3.5 h-3.5" style={{ color: '#48bb78' }} />
-            ) : (
-              <TrendingDown className="w-3.5 h-3.5" style={{ color: '#f56565' }} />
-            )}
-            <span 
-              className="text-xs font-bold"
-              style={{ color: isPositive ? '#48bb78' : '#f56565' }}
-            >
-              {Math.abs(change)}% {isPositive ? 'increase' : 'decrease'}
-            </span>
-          </div>
-        )}
-      </div>
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
-        style={{
-          background: iconBg,
-          boxShadow: '4px 4px 8px rgba(0,0,0,0.1)',
-        }}
-      >
-        <Icon className="w-8 h-8 text-white" />
-      </div>
+// Icon container with pressed effect
+const IconBox = ({ icon: Icon, color, size = "md" }) => {
+  const sizeClasses = {
+    sm: "w-10 h-10",
+    md: "w-12 h-12", 
+    lg: "w-16 h-16"
+  };
+  
+  return (
+    <div
+      className={`${sizeClasses[size]} rounded-2xl flex items-center justify-center`}
+      style={{
+        background: '#E0E5EC',
+        boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+      }}
+    >
+      <Icon className={`${size === 'lg' ? 'w-8 h-8' : size === 'sm' ? 'w-5 h-5' : 'w-6 h-6'}`} style={{ color }} />
     </div>
-  </SoftCard>
+  );
+};
+
+// Main metric card
+const MetricCard = ({ title, value, change, isPositive, icon: Icon, iconColor }) => (
+  <NeuCard className="p-6 cursor-pointer hover:translate-y-[-2px] transition-transform">
+    <div className="flex justify-between items-start mb-4">
+      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#A0AEC0' }}>
+        {title}
+      </span>
+      <IconBox icon={Icon} color={iconColor} />
+    </div>
+    <div className="flex items-baseline gap-3">
+      <span className="text-4xl font-black" style={{ color: '#2D3748' }}>
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </span>
+      {change !== undefined && (
+        <span 
+          className="flex items-center gap-1 text-sm font-bold px-2 py-1 rounded-lg"
+          style={{
+            background: isPositive ? '#D4F4DD' : '#FFD4D4',
+            color: isPositive ? '#48BB78' : '#F56565'
+          }}
+        >
+          {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+          {Math.abs(change)}%
+        </span>
+      )}
+    </div>
+  </NeuCard>
 );
 
 // Small insight card
-const InsightCard = ({ icon: Icon, iconBg, title, value, subtitle }) => (
-  <SoftCard className="text-center">
-    <div
-      className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
-      style={{
-        background: iconBg,
-        boxShadow: '4px 4px 8px rgba(0,0,0,0.1)',
-      }}
-    >
-      <Icon className="w-7 h-7 text-white" />
-    </div>
-    <p className="text-xs font-semibold uppercase tracking-wide mb-1" 
-       style={{ color: '#a0aec0' }}>
+const InsightCard = ({ icon: Icon, iconColor, title, value, subtitle, onClick }) => (
+  <NeuCard className={`p-4 text-center ${onClick ? 'cursor-pointer hover:translate-y-[-2px]' : ''} transition-transform`}>
+    <IconBox icon={Icon} color={iconColor} size="sm" />
+    <p className="text-[10px] font-bold uppercase mt-2 mb-1" style={{ color: '#A0AEC0' }}>
       {title}
     </p>
-    <p className="text-3xl font-black mb-1" style={{ color: '#2d3748' }}>
+    <p className="text-lg font-bold mb-0.5" style={{ color: '#2D3748' }}>
       {value}
     </p>
     {subtitle && (
-      <p className="text-xs font-medium" style={{ color: '#718096' }}>
+      <p className="text-[10px]" style={{ color: '#718096' }}>
         {subtitle}
       </p>
     )}
-  </SoftCard>
+  </NeuCard>
 );
-
-// 3D-style bar with rounded caps
-const RoundedBar = (props) => {
-  const { fill, x, y, width, height } = props;
-  
-  return (
-    <g>
-      <defs>
-        <linearGradient id={`gradient-${x}`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#667eea" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#764ba2" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={`url(#gradient-${x})`}
-        rx={width / 2}
-        ry={width / 2}
-      />
-    </g>
-  );
-};
 
 const AnalyticsPage = ({
   analyticsData,
@@ -145,133 +117,137 @@ const AnalyticsPage = ({
     : 0;
 
   const clientStatusData = [
-    { name: 'Active', value: stats.activeClients, color: '#48bb78' },
-    { name: 'Inactive', value: stats.totalClients - stats.activeClients, color: '#ed64a6' }
+    { name: 'Active', value: stats.activeClients, color: '#48BB78' },
+    { name: 'Inactive', value: stats.totalClients - stats.activeClients, color: '#ED64A6' }
   ];
 
-  const gpsStatusData = [
-    { name: 'With GPS', value: stats.withCoordinates, color: '#4299e1' },
-    { name: 'Missing GPS', value: stats.totalClients - stats.withCoordinates, color: '#f56565' }
-  ];
-
-  const topAreasData = Array.isArray(distribution) ? distribution.slice(0, 5).map(area => ({
+  const topAreasData = Array.isArray(distribution) ? distribution.slice(0, 5).map((area, idx) => ({
     ...area,
-    displayArea: area.area || 'Unknown'
+    displayArea: area.area || 'Unknown',
+    percentage: idx === 0 ? 85 : idx === 1 ? 35 : 20,
+    gradient: idx === 0 
+      ? 'linear-gradient(90deg, #667EEA 0%, #764BA2 100%)'
+      : 'linear-gradient(90deg, #9F7AEA 0%, #667EEA 100%)'
   })) : [];
   
   const userLeaderboard = Array.isArray(analyticsData.leaderboard) ? analyticsData.leaderboard : [];
 
   const inactiveCount = stats.totalClients - stats.activeClients;
-  const missingGPS = stats.totalClients - stats.withCoordinates;
   
   const actionItems = [
     {
       icon: AlertTriangle,
-      iconBg: '#fc8181',
+      iconBg: '#FCA5A5',
+      color: '#EF4444',
       title: `${inactiveCount} clients inactive >30 days`,
       action: 'Review engagement strategy',
       show: inactiveCount > 0
     },
     {
       icon: CheckCircle,
-      iconBg: '#68d391',
+      iconBg: '#86EFAC',
+      color: '#10B981',
       title: `${stats.coordinatesCoverage}% GPS coverage`,
-      action: stats.coordinatesCoverage > 80 ? 'Excellent coverage!' : 'Needs improvement',
+      action: stats.coordinatesCoverage > 80 ? 'Excellent coverage across all active sectors!' : 'Needs improvement',
       show: true
     }
   ].filter(item => item.show);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8" style={{ background: '#E0E5EC', minHeight: '100vh' }}>
       {/* Key Metrics Row */}
-      <div className="grid grid-cols-3 gap-6">
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+      <div className="grid grid-cols-3 gap-8">
+        <div onClick={() => onGoToClients()}>
           <MetricCard
             title="Total Clients"
             value={stats.totalClients}
             change={parseFloat(growth)}
             isPositive={growth > 0}
             icon={Users}
-            iconBg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            iconColor="#6366F1"
           />
         </div>
 
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+        <div onClick={() => onGoToClients()}>
           <MetricCard
             title="Active Rate"
             value={`${conversionRate}%`}
             change={2.3}
             isPositive={true}
             icon={Activity}
-            iconBg="linear-gradient(135deg, #48bb78 0%, #38b2ac 100%)"
+            iconColor="#10B981"
           />
         </div>
 
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+        <div onClick={() => onGoToClients()}>
           <MetricCard
             title="GPS Coverage"
             value={`${stats.coordinatesCoverage}%`}
             change={5.1}
             isPositive={true}
             icon={MapPin}
-            iconBg="linear-gradient(135deg, #4299e1 0%, #3182ce 100%)"
+            iconColor="#3B82F6"
           />
         </div>
       </div>
 
       {/* Insights Grid */}
-      <div className="grid grid-cols-6 gap-4">
-        <div onClick={() => onGoToUsers()} className="cursor-pointer">
+      <div className="grid grid-cols-6 gap-6">
+        <div onClick={() => onGoToUsers()}>
           <InsightCard
             icon={Users}
-            iconBg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            iconColor="#6366F1"
             title="Team Size"
             value={stats.totalUsers}
             subtitle="Active users"
+            onClick={() => onGoToUsers()}
           />
         </div>
 
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+        <div onClick={() => onGoToClients()}>
           <InsightCard
             icon={MapPin}
-            iconBg="linear-gradient(135deg, #48bb78 0%, #38b2ac 100%)"
-            title="Service Areas"
+            iconColor="#10B981"
+            title="Areas"
             value={stats.uniquePincodes}
             subtitle="Unique pincodes"
+            onClick={() => onGoToClients()}
           />
         </div>
 
         <InsightCard
           icon={Target}
-          iconBg="linear-gradient(135deg, #4299e1 0%, #3182ce 100%)"
+          iconColor="#3B82F6"
           title="Density"
           value={clientsPerArea}
           subtitle="Clients per area"
         />
 
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+        <div onClick={() => onGoToClients()}>
           <InsightCard
             icon={Activity}
-            iconBg="linear-gradient(135deg, #ed64a6 0%, #d53f8c 100%)"
+            iconColor="#EC4899"
             title="Inactive"
             value={inactiveCount}
             subtitle="Need attention"
+            onClick={() => onGoToClients()}
           />
         </div>
 
-        <div onClick={() => onGoToClients()} className="cursor-pointer">
+        <div onClick={() => onGoToClients()}>
           <InsightCard
             icon={AlertCircle}
-            iconBg="linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)"
-            title="Missing GPS"
-            value={missingGPS}
+            iconColor="#F97316"
+            title="Missing"
+            value={stats.totalClients - stats.withCoordinates}
             subtitle="Need geocoding"
+            onClick={() => onGoToClients()}
           />
         </div>
 
         <InsightCard
           icon={Clock}
-          iconBg="linear-gradient(135deg, #9f7aea 0%, #805ad5 100%)"
+          iconColor="#8B5CF6"
           title="Total Logs"
           value={`${(stats.totalLogs / 1000).toFixed(1)}K`}
           subtitle="Tracking records"
@@ -279,275 +255,284 @@ const AnalyticsPage = ({
       </div>
 
       {/* Action Items */}
-      <SoftCard>
-        <div className="flex items-center gap-3 mb-5">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '4px 4px 8px rgba(0,0,0,0.1)',
-            }}
-          >
-            <Target className="w-7 h-7 text-white" />
-          </div>
+      <NeuCard className="p-8 rounded-[40px]">
+        <div className="flex items-center gap-4 mb-8">
+          <IconBox icon={Target} color="#6366F1" />
           <div>
-            <h3 className="text-lg font-black" style={{ color: "#2d3748" }}>
+            <h2 className="text-xl font-bold" style={{ color: '#2D3748' }}>
               Action Items
-            </h3>
-            <p className="text-sm font-medium" style={{ color: "#718096" }}>
-              Important tasks requiring attention
+            </h2>
+            <p className="text-sm" style={{ color: '#A0AEC0' }}>
+              Important tasks requiring immediate attention
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {actionItems.map((item, idx) => (
             <div
               key={idx}
               onClick={() => onGoToClients()}
-              className="flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all hover:translate-y-[-2px]"
+              className="p-4 flex items-center gap-4 group cursor-pointer transition-all hover:translate-x-1"
               style={{
-                background: '#f0f4f8',
-                boxShadow: '4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff',
+                background: '#E0E5EC',
+                boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+                borderRadius: '16px'
               }}
             >
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{
-                  background: item.iconBg,
-                  boxShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: item.iconBg }}
               >
-                <item.icon className="w-6 h-6 text-white" />
+                <item.icon className="w-5 h-5" style={{ color: item.color }} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold mb-0.5" style={{ color: "#2d3748" }}>
+                <p className="font-bold" style={{ color: '#2D3748' }}>
                   {item.title}
                 </p>
-                <p className="text-xs font-medium" style={{ color: "#718096" }}>
+                <p className="text-xs" style={{ color: '#A0AEC0' }}>
                   {item.action}
                 </p>
               </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
             </div>
           ))}
         </div>
-      </SoftCard>
+      </NeuCard>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 gap-8">
         {/* Client Status */}
-        <SoftCard>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#48bb78' }} />
-            <h3 className="text-base font-black" style={{ color: "#2d3748" }}>
-              Client Status
-            </h3>
+        <NeuCard className="p-8 rounded-[40px]">
+          <h3 className="font-bold mb-6 flex items-center gap-2" style={{ color: '#2D3748' }}>
+            <div className="w-2 h-2 rounded-full" style={{ background: '#48BB78' }} />
+            Client Status
+          </h3>
+          
+          <div className="relative flex justify-center py-4">
+            <div 
+              className="w-48 h-48 rounded-full flex items-center justify-center"
+              style={{
+                background: '#E0E5EC',
+                boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+              }}
+            >
+              <div className="relative w-36 h-36">
+                <svg className="w-full h-full -rotate-90">
+                  <circle
+                    cx="72"
+                    cy="72"
+                    r="60"
+                    fill="none"
+                    stroke="#48BB78"
+                    strokeWidth="18"
+                    strokeDasharray={`${(stats.activeClients / stats.totalClients) * 377} 377`}
+                    strokeLinecap="round"
+                  />
+                  <circle
+                    cx="72"
+                    cy="72"
+                    r="60"
+                    fill="none"
+                    stroke="#ED64A6"
+                    strokeWidth="18"
+                    strokeDasharray={`${((stats.totalClients - stats.activeClients) / stats.totalClients) * 377} 377`}
+                    strokeDashoffset={`-${(stats.activeClients / stats.totalClients) * 377}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="text-2xl font-bold" style={{ color: '#2D3748' }}>
+                    {stats.totalClients}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold" style={{ color: '#A0AEC0' }}>
+                    Total
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={clientStatusData}
-                dataKey="value"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                cornerRadius={8}
-              >
-                {clientStatusData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{
-                  background: '#f0f4f8',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px #d1d9e6',
-                  fontSize: '13px',
-                  fontWeight: '600'
-                }}
-              />
-              <Legend 
-                wrapperStyle={{
-                  fontSize: '13px',
-                  fontWeight: '600'
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </SoftCard>
 
-        {/* GPS Coverage */}
-        <SoftCard>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#4299e1' }} />
-            <h3 className="text-base font-black" style={{ color: "#2d3748" }}>
-              GPS Coverage
-            </h3>
+          <div className="flex justify-center gap-6 mt-6">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded" style={{ background: '#48BB78' }} />
+              <span className="text-xs font-bold" style={{ color: '#2D3748' }}>Active</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded" style={{ background: '#ED64A6' }} />
+              <span className="text-xs font-bold" style={{ color: '#2D3748' }}>Inactive</span>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={gpsStatusData}
-                dataKey="value"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                cornerRadius={8}
-              >
-                {gpsStatusData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{
-                  background: '#f0f4f8',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px #d1d9e6',
-                  fontSize: '13px',
-                  fontWeight: '600'
-                }}
-              />
-              <Legend 
-                wrapperStyle={{
-                  fontSize: '13px',
-                  fontWeight: '600'
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </SoftCard>
+        </NeuCard>
 
         {/* Top Areas */}
-        <SoftCard>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#667eea' }} />
-            <h3 className="text-base font-black" style={{ color: "#2d3748" }}>
-              Top Areas
-            </h3>
+        <NeuCard className="p-8 rounded-[40px]">
+          <h3 className="font-bold mb-6 flex items-center gap-2" style={{ color: '#2D3748' }}>
+            <div className="w-2 h-2 rounded-full" style={{ background: '#6366F1' }} />
+            Top Areas
+          </h3>
+          
+          <div className="space-y-8 mt-4">
+            {topAreasData.slice(0, 2).map((area, idx) => (
+              <div key={idx}>
+                <div className="flex justify-between mb-2">
+                  <span className="text-xs font-bold" style={{ color: '#A0AEC0' }}>
+                    Area {area.displayArea}
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: '#2D3748' }}>
+                    {area.clients} clients
+                  </span>
+                </div>
+                <div 
+                  className="h-6 rounded-full overflow-hidden"
+                  style={{
+                    background: '#E0E5EC',
+                    boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+                  }}
+                >
+                  <div 
+                    className="h-full rounded-full"
+                    style={{ 
+                      width: `${area.percentage}%`,
+                      background: area.gradient
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={topAreasData} layout="vertical">
-              <XAxis 
-                type="number" 
-                stroke="#a0aec0" 
-                style={{ fontSize: '12px', fontWeight: '500' }} 
-              />
-              <YAxis 
-                type="category" 
-                dataKey="displayArea" 
-                stroke="#a0aec0" 
-                style={{ fontSize: '12px', fontWeight: '500' }}
-                width={80}
-              />
-              <Tooltip 
-                contentStyle={{
-                  background: '#f0f4f8',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '4px 4px 8px #d1d9e6',
-                  fontSize: '13px',
-                  fontWeight: '600'
-                }}
-              />
-              <Bar 
-                dataKey="clients" 
-                fill="#667eea"
-                radius={[0, 12, 12, 0]}
-                shape={<RoundedBar />}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </SoftCard>
+        </NeuCard>
       </div>
 
-      {/* User Leaderboard */}
-      <SoftCard>
-        <div className="flex items-center gap-4 mb-6">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)",
-              boxShadow: "4px 4px 8px rgba(0,0,0,0.1)",
-            }}
-          >
-            <Award className="w-8 h-8 text-white" />
-          </div>
+      {/* Top Performers */}
+      <NeuCard className="p-8 rounded-[40px]">
+        <div className="flex items-center gap-4 mb-8">
+          <IconBox icon={Award} color="#F97316" />
           <div>
-            <h3 className="text-lg font-black" style={{ color: "#2d3748" }}>
+            <h2 className="text-xl font-bold" style={{ color: '#2D3748' }}>
               Top Performers
-            </h3>
-            <p className="text-sm font-medium" style={{ color: "#718096" }}>
+            </h2>
+            <p className="text-sm" style={{ color: '#A0AEC0' }}>
               Best team members this month
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-5 gap-4">
-          {userLeaderboard.slice(0, 5).map((user, idx) => (
-            <div
+        <div className="grid grid-cols-4 gap-6">
+          {userLeaderboard.slice(0, 2).map((user, idx) => (
+            <NeuCard
               key={idx}
+              className="p-6 text-center space-y-4 cursor-pointer hover:translate-y-[-4px] transition-transform"
               onClick={() => {
                 onSelectUser(user);
                 onGoToUsers();
               }}
-              className="cursor-pointer transition-all hover:translate-y-[-4px]"
             >
-              <SoftCard className="text-center">
-                <div
-                  className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center text-white font-black text-xl"
-                  style={{
-                    background: idx === 0
-                      ? "linear-gradient(135deg, #f6ad55, #ed8936)"
-                      : idx === 1
-                      ? "linear-gradient(135deg, #cbd5e0, #a0aec0)"
-                      : idx === 2
-                      ? "linear-gradient(135deg, #d69e71, #cd7f32)"
-                      : "linear-gradient(135deg, #a0aec0, #718096)",
-                    boxShadow: '4px 4px 8px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  {idx + 1}
-                </div>
-
-                <p className="text-sm font-black mb-3 truncate" style={{ color: "#2d3748" }}>
+              <div
+                className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white font-black text-2xl"
+                style={{
+                  background: idx === 0
+                    ? 'linear-gradient(145deg, #f6ad55, #ed8936)'
+                    : 'linear-gradient(145deg, #cbd5e0, #a0aec0)',
+                  boxShadow: '9px 9px 16px rgba(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5)',
+                }}
+              >
+                {idx + 1}
+              </div>
+              <div>
+                <p className="font-bold text-lg" style={{ color: '#2D3748' }}>
                   {user.name}
                 </p>
-
-                <div className="space-y-2">
-                  <div 
-                    className="px-3 py-2 rounded-xl"
-                    style={{
-                      background: '#e6f2ff',
-                    }}
-                  >
-                    <p className="text-sm font-bold" style={{ color: '#667eea' }}>
-                      {user.meetings_held}
-                    </p>
-                    <p className="text-xs font-medium" style={{ color: '#718096' }}>
-                      meetings
-                    </p>
-                  </div>
-                  <div 
-                    className="px-3 py-2 rounded-xl"
-                    style={{
-                      background: '#e6ffed',
-                    }}
-                  >
-                    <p className="text-sm font-bold" style={{ color: '#48bb78' }}>
-                      {user.clients_created}
-                    </p>
-                    <p className="text-xs font-medium" style={{ color: '#718096' }}>
-                      clients
-                    </p>
-                  </div>
+                <p className="text-xs" style={{ color: '#A0AEC0' }}>
+                  {idx === 0 ? 'Senior Consultant' : 'Area Manager'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div 
+                  className="py-2 rounded-xl"
+                  style={{
+                    background: '#E0E5EC',
+                    boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+                  }}
+                >
+                  <p className="font-bold text-sm" style={{ color: '#6366F1' }}>
+                    {user.meetings_held}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold" style={{ color: '#A0AEC0' }}>
+                    Meetings
+                  </p>
                 </div>
-              </SoftCard>
-            </div>
+                <div 
+                  className="py-2 rounded-xl"
+                  style={{
+                    background: '#E0E5EC',
+                    boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+                  }}
+                >
+                  <p className="font-bold text-sm" style={{ color: '#10B981' }}>
+                    {user.clients_created}
+                  </p>
+                  <p className="text-[10px] uppercase font-bold" style={{ color: '#A0AEC0' }}>
+                    Clients
+                  </p>
+                </div>
+              </div>
+            </NeuCard>
           ))}
+
+          {/* Add KPI Card */}
+          <div
+            className="p-6 rounded-3xl flex flex-col items-center justify-center cursor-pointer transition-all hover:translate-y-[-4px]"
+            style={{
+              background: '#E0E5EC',
+              boxShadow: 'inset 9px 9px 16px rgba(163, 177, 198, 0.6), inset -9px -9px 16px rgba(255, 255, 255, 0.5)',
+              border: '2px dashed #CBD5E0'
+            }}
+          >
+            <div className="text-slate-400 mb-2">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-xs font-bold uppercase" style={{ color: '#A0AEC0' }}>
+              Add KPI
+            </p>
+          </div>
+
+          {/* Boost Performance Card */}
+          <div
+            className="p-6 rounded-3xl flex flex-col items-center justify-center"
+            style={{
+              background: 'linear-gradient(145deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.1))',
+              boxShadow: '9px 9px 16px rgba(163, 177, 198, 0.6), -9px -9px 16px rgba(255, 255, 255, 0.5)',
+            }}
+          >
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white"
+              style={{
+                background: '#6366F1',
+                boxShadow: '0 8px 16px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <p className="font-bold text-sm text-center mb-3" style={{ color: '#2D3748' }}>
+              Boost Performance
+            </p>
+            <button
+              className="px-4 py-2 text-xs font-bold rounded-xl text-white"
+              style={{
+                background: '#6366F1',
+                boxShadow: '4px 4px 8px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              View Tips
+            </button>
+          </div>
         </div>
-      </SoftCard>
+      </NeuCard>
     </div>
   );
 };
