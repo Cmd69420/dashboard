@@ -1,6 +1,6 @@
-// Dashboard.js - Multi-Company Version
+// Dashboard.js - Multi-Company Version with Improved UX
 import React, { useState, useEffect } from "react";
-import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown } from "lucide-react";
+import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight } from "lucide-react";
 
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
@@ -15,6 +15,7 @@ import ClientServicesModal from './ClientServicesModal';
 import CompanyManagementPage from './CompanyManagementPage';
 import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
+import PlanUsageWidget from './PlanUsageWidget';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
@@ -23,8 +24,9 @@ const Dashboard = () => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [planPreview, setPlanPreview] = useState(null);
 
-  // ✅ NEW: Company context state
+  // Company context state
   const [userCompany, setUserCompany] = useState({
     id: "",
     name: "",
@@ -39,8 +41,7 @@ const Dashboard = () => {
   const CLIENTS_PER_PAGE = 50;
   const [clientsTotalPages, setClientsTotalPages] = useState(1);
   const [clientsTotal, setClientsTotal] = useState(0);
-  // billing
-const [billingOpen, setBillingOpen] = useState(false);  
+  const [billingOpen, setBillingOpen] = useState(false);  
 
   // users
   const [users, setUsers] = useState([]);
@@ -65,9 +66,10 @@ const [billingOpen, setBillingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ NEW: Auth check with company context
+  const token = localStorage.getItem("token");
+
+  // Auth check with company context
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) {
       window.location.href = "/login";
       return;
@@ -76,7 +78,6 @@ const [billingOpen, setBillingOpen] = useState(false);
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       
-      // Check if user is admin or super admin
       if (!payload?.isAdmin && !payload?.isSuperAdmin) {
         alert("Unauthorized – Admin access only");
         localStorage.removeItem("token");
@@ -88,7 +89,6 @@ const [billingOpen, setBillingOpen] = useState(false);
       setIsAdmin(payload.isAdmin || false);
       setIsSuperAdmin(payload.isSuperAdmin || false);
 
-      // ✅ NEW: Set company context
       setUserCompany({
         id: payload.companyId || localStorage.getItem("companyId") || "",
         name: localStorage.getItem("companyName") || "No Company",
@@ -111,6 +111,30 @@ const [billingOpen, setBillingOpen] = useState(false);
     }
   }, []);
 
+  // Fetch plan preview for sidebar
+  useEffect(() => {
+    const fetchPlanPreview = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/plans/my-plan`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPlanPreview({
+            name: data.plan.displayName,
+            isFreePlan: data.plan.planName === 'starter',
+            usersUsed: data.usage.users.current,
+            usersMax: data.usage.users.max,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load plan preview:", err);
+      }
+    };
+    
+    if (token) fetchPlanPreview();
+  }, [token]);
+
   // Outside click close
   useEffect(() => {
     const handler = (e) => {
@@ -122,13 +146,11 @@ const [billingOpen, setBillingOpen] = useState(false);
     return () => document.removeEventListener("mousedown", handler);
   }, [profileOpen]);
 
-  const token = localStorage.getItem("token");
-
   useEffect(() => {
-  if (currentPage === "billingPlans" || currentPage === "billingHistory") {
-    setBillingOpen(true);
-  }
-}, [currentPage])
+    if (currentPage === "billingPlans" || currentPage === "billingHistory") {
+      setBillingOpen(true);
+    }
+  }, [currentPage]);
 
   // Main fetch whenever page or selectedUser changes
   useEffect(() => {
@@ -171,7 +193,6 @@ const [billingOpen, setBillingOpen] = useState(false);
     } catch (err) {
       console.error("Error fetching data:", err);
       
-      // ✅ NEW: Handle session invalidation
       if (err.message?.includes("SESSION_INVALIDATED") || err.message?.includes("401")) {
         localStorage.clear();
         window.location.href = "/login";
@@ -184,7 +205,6 @@ const [billingOpen, setBillingOpen] = useState(false);
     setLoading(false);
   };
 
-  // [Keep all your existing fetch functions - they work with the new backend automatically]
   const fetchAnalytics = async () => {
     try {
       const analyticsRes = await fetch(`${API_BASE_URL}/admin/analytics`, {
@@ -442,39 +462,39 @@ const [billingOpen, setBillingOpen] = useState(false);
 
   return (
     <div className="min-h-screen" style={{ background: '#ecf0f3' }}>
-      {/* Sidebar */}
+      {/* Sidebar with improved styling */}
       <aside 
-        className="fixed top-0 left-0 h-full w-72 p-6"
+        className="fixed top-0 left-0 h-full w-72 p-6 flex flex-col"
         style={{ background: '#ecf0f3' }}
       >
-        {/* Logo */}
+        {/* Logo - Softer appearance */}
         <div 
-          className="mb-10 p-6 rounded-3xl flex items-center gap-4"
+          className="mb-8 p-5 rounded-2xl flex items-center gap-3"
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '9px 9px 16px rgba(163,177,198,0.6)',
+            boxShadow: '4px 4px 8px rgba(102,126,234,0.3), -2px -2px 6px rgba(255,255,255,0.1)',
           }}
         >
-          <img src="/logo.png" alt="GeoTrack" className="w-12 h-12 object-contain" />
-          <span className="text-2xl font-bold text-white">GeoTrack</span>
+          <img src="/logo.png" alt="GeoTrack" className="w-10 h-10 object-contain" />
+          <span className="text-xl font-bold text-white">GeoTrack</span>
         </div>
 
-        {/* ✅ NEW: Company Context Indicator */}
+        {/* Company Context - More subtle */}
         {!isSuperAdmin && userCompany.name && (
           <div 
-            className="mb-6 p-4 rounded-2xl"
+            className="mb-6 p-3 rounded-xl border border-slate-200"
             style={{
-              background: '#e6eaf0',
-              boxShadow: 'inset 4px 4px 8px #c5c8cf, inset -4px -4px 8px #ffffff',
+              background: '#f8fafc',
+              boxShadow: '2px 2px 4px rgba(148,163,184,0.15)',
             }}
           >
             <div className="flex items-center gap-2 mb-1">
-              <Building2 className="w-4 h-4" style={{ color: '#667eea' }} />
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#94a3b8' }}>
-                Your Company
+              <Building2 className="w-3.5 h-3.5" style={{ color: '#667eea' }} />
+              <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#94a3b8' }}>
+                Company
               </span>
             </div>
-            <p className="text-sm font-bold truncate" style={{ color: '#1e293b' }}>
+            <p className="text-sm font-semibold truncate" style={{ color: '#1e293b' }}>
               {userCompany.name}
             </p>
             {userCompany.subdomain && (
@@ -485,17 +505,17 @@ const [billingOpen, setBillingOpen] = useState(false);
           </div>
         )}
 
-        {/* ✅ NEW: Super Admin Indicator */}
+        {/* Super Admin Indicator */}
         {isSuperAdmin && (
           <div 
-            className="mb-6 p-4 rounded-2xl"
+            className="mb-6 p-3 rounded-xl border"
             style={{
-              background: 'linear-gradient(135deg, rgba(250,112,154,0.15), rgba(254,225,64,0.15))',
-              border: '2px solid rgba(250,112,154,0.3)',
+              background: 'linear-gradient(135deg, rgba(250,112,154,0.1), rgba(254,225,64,0.1))',
+              border: '1px solid rgba(250,112,154,0.3)',
             }}
           >
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4" style={{ color: '#fa709a' }} />
+              <Sparkles className="w-3.5 h-3.5" style={{ color: '#fa709a' }} />
               <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#fa709a' }}>
                 Super Admin
               </span>
@@ -506,8 +526,8 @@ const [billingOpen, setBillingOpen] = useState(false);
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="space-y-4">
+        {/* Navigation - Gentler appearance */}
+        <nav className="space-y-2 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -515,26 +535,39 @@ const [billingOpen, setBillingOpen] = useState(false);
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id)}
-                className="w-full p-5 rounded-2xl flex items-center gap-4 transition-all duration-200"
+                className="w-full p-4 rounded-xl flex items-center gap-3 transition-all duration-200 group"
                 style={
                   isActive
                     ? {
-                        background: '#e6eaf0',
-                        boxShadow: 'inset 8px 8px 16px #c5c8cf, inset -8px -8px 16px #ffffff',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        boxShadow: '3px 3px 6px rgba(102,126,234,0.4)',
+                        color: 'white',
                       }
                     : {
-                        background: '#e6eaf0',
-                        boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+                        background: 'transparent',
+                        color: '#64748b',
                       }
                 }
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.boxShadow = '2px 2px 4px rgba(148,163,184,0.1)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }
+                }}
               >
                 <Icon 
-                  className="w-6 h-6" 
-                  style={{ color: isActive ? '#667eea' : '#718096' }}
+                  className="w-5 h-5" 
+                  style={{ color: isActive ? 'white' : '#94a3b8' }}
                 />
                 <span 
-                  className="font-semibold text-base"
-                  style={{ color: isActive ? '#667eea' : '#718096' }}
+                  className="font-medium text-sm"
+                  style={{ color: isActive ? 'white' : '#64748b' }}
                 >
                   {item.label}
                 </span>
@@ -543,51 +576,57 @@ const [billingOpen, setBillingOpen] = useState(false);
           })}
         </nav>
 
-        {/* Sidebar Metric */}
-        <div className="mt-4">
+        {/* Bottom section - Plan Preview */}
+        <div className="mt-auto space-y-3">
           <button
-            onClick={() => setBillingOpen(prev => !prev)}
-            className="w-full p-5 rounded-2xl flex items-center gap-4 transition-all duration-200"
+            onClick={() => setCurrentPage("billingPlans")}
+            className="w-full p-4 rounded-xl transition-all duration-200 group"
             style={{
-              background: '#e6eaf0',
-              boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+              background: planPreview?.isFreePlan 
+                ? 'linear-gradient(135deg, rgba(148,163,184,0.1) 0%, rgba(100,116,139,0.1) 100%)'
+                : 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
+              border: `1px solid ${planPreview?.isFreePlan ? 'rgba(148,163,184,0.2)' : 'rgba(102,126,234,0.2)'}`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '3px 3px 6px rgba(102,126,234,0.2)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            <Package className="w-6 h-6 text-slate-600" />
-            <span className="font-semibold text-base text-slate-700">
-              Pricing & Billing
-            </span>
-          </button>
-
-          {billingOpen && (
-            <div className="ml-6 mt-3 space-y-2">
-              <button
-                onClick={() => setCurrentPage("billingPlans")}
-                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
-                style={{
-                  background: currentPage === "billingPlans" ? "#dfe6f3" : "#ecf0f3",
-                  fontWeight: currentPage === "billingPlans" ? "600" : "400",
-                  color: '#64748b'
-                }}
-              >
-                • Plans
-              </button>
-
-              <button
-                onClick={() => setCurrentPage("billingHistory")}
-                className="w-full text-left px-4 py-2 rounded-xl text-sm transition"
-                style={{
-                  background: currentPage === "billingHistory" ? "#dfe6f3" : "#ecf0f3",
-                  fontWeight: currentPage === "billingHistory" ? "600" : "400",
-                  color: '#64748b'
-                }}
-              >
-                • History
-              </button>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {planPreview?.isFreePlan ? (
+                  <Sparkles className="w-4 h-4" style={{ color: '#94a3b8' }} />
+                ) : (
+                  <Crown className="w-4 h-4" style={{ color: '#667eea' }} />
+                )}
+                <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                  {planPreview?.name || 'Loading...'}
+                </span>
+              </div>
+              <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#667eea' }} />
             </div>
-          )}
+            {planPreview && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e6eaf0' }}>
+                  <div 
+                    className="h-full rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min((planPreview.usersUsed / planPreview.usersMax) * 100, 100)}%`,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    }}
+                  />
+                </div>
+                <span className="text-xs whitespace-nowrap" style={{ color: '#64748b' }}>
+                  {planPreview.usersUsed}/{planPreview.usersMax} users
+                </span>
+              </div>
+            )}
+          </button>
         </div>
-
       </aside>
 
       {/* Main Content */}
@@ -605,7 +644,7 @@ const [billingOpen, setBillingOpen] = useState(false);
               {currentPage === "userLogs" && "Location Tracking"}
               {currentPage === "userMeetings" && "Meeting History"}
               {currentPage === "userExpenses" && "Expense Reports"}
-               {currentPage === "billingPlans" && "Pricing Plans"}       
+              {currentPage === "billingPlans" && "Pricing Plans"}       
               {currentPage === "billingHistory" && "Billing History"} 
             </h1>
             <p style={{ color: '#64748b' }}>
@@ -641,10 +680,10 @@ const [billingOpen, setBillingOpen] = useState(false);
             <div className="relative profile-dropdown">
               <button
                 onClick={() => setProfileOpen(p => !p)}
-                className="w-12 h-12 rounded-full flex items-center justify-center"
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105"
                 style={{
-                  background: '#e6eaf0',
-                  boxShadow: '6px 6px 12px #c5c8cf, -6px -6px 12px #ffffff',
+                  background: '#f8fafc',
+                  boxShadow: '3px 3px 6px rgba(148,163,184,0.2)',
                 }}
               >
                 <Users className="w-5 h-5 text-slate-600" />
@@ -655,10 +694,9 @@ const [billingOpen, setBillingOpen] = useState(false);
                   className="absolute right-0 mt-4 w-64 rounded-2xl p-4 z-50"
                   style={{
                     background: '#ecf0f3',
-                    boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff',
+                    boxShadow: '6px 6px 12px rgba(163,177,198,0.4), -6px -6px 12px rgba(255,255,255,0.8)',
                   }}
                 >
-                  {/* Header */}
                   <div className="mb-4">
                     <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
                       {isSuperAdmin ? "Super Admin Account" : "Admin Account"}
@@ -673,10 +711,8 @@ const [billingOpen, setBillingOpen] = useState(false);
                     )}
                   </div>
 
-                  {/* Divider */}
                   <div className="my-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
 
-                  {/* Logout */}
                   <button
                     onClick={() => {
                       localStorage.clear();
@@ -684,20 +720,11 @@ const [billingOpen, setBillingOpen] = useState(false);
                     }}
                     className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
                     style={{
-                      background: '#ecf0f3',
-                      boxShadow:
-                        'inset 4px 4px 8px rgba(163,177,198,0.45), inset -4px -4px 8px rgba(255,255,255,0.8)',
+                      background: '#fee2e2',
+                      boxShadow: '2px 2px 4px rgba(239,68,68,0.2)',
                     }}
                   >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{
-                        background: '#fee2e2',
-                        boxShadow: '2px 2px 4px rgba(239,68,68,.3)',
-                      }}
-                    >
-                      <LogOut className="w-4 h-4 text-red-600" />
-                    </div>
+                    <LogOut className="w-4 h-4 text-red-600" />
                     <span className="text-sm font-semibold text-red-600">Logout</span>
                   </button>
                 </div>
@@ -713,7 +740,7 @@ const [billingOpen, setBillingOpen] = useState(false);
             style={{
               background: '#fed7d7',
               borderColor: '#fc8181',
-              boxShadow: '8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff'
+              boxShadow: '4px 4px 8px rgba(252,129,129,0.2)'
             }}
           >
             <p style={{ color: '#c53030' }} className="font-medium">{error}</p>
@@ -726,8 +753,8 @@ const [billingOpen, setBillingOpen] = useState(false);
             <div 
               className="w-20 h-20 rounded-full flex items-center justify-center"
               style={{
-                background: '#e6eaf0',
-                boxShadow: 'inset 8px 8px 16px #c5c8cf, inset -8px -8px 16px #ffffff',
+                background: '#f8fafc',
+                boxShadow: '4px 4px 8px rgba(148,163,184,0.2)',
                 animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
               }}
             >
@@ -819,9 +846,14 @@ const [billingOpen, setBillingOpen] = useState(false);
             }
           />
         ) : currentPage === "companyManagement" ? (
-            <CompanyManagementPage onRefresh={fetchData} />
-             ) : currentPage === "billingPlans" ? (     
-          <BillingPlansPage />
+          <CompanyManagementPage onRefresh={fetchData} />
+        ) : currentPage === "billingPlans" ? (     
+          <>
+            <PlanUsageWidget />
+            <div className="mt-6">
+              <BillingPlansPage />
+            </div>
+          </>
         ) : currentPage === "billingHistory" ? (    
           <BillingHistoryPage />
         ) : null}
