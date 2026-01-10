@@ -1,6 +1,6 @@
-// Dashboard.js - Multi-Company Version with Improved UX
+// Dashboard.js - Multi-Company Version with Collapsible Sidebar
 import React, { useState, useEffect } from "react";
-import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight } from "lucide-react";
+import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [planPreview, setPlanPreview] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Company context state
   const [userCompany, setUserCompany] = useState({
@@ -95,14 +96,6 @@ const Dashboard = () => {
         subdomain: localStorage.getItem("companySubdomain") || "",
       });
 
-      console.log("🔐 Dashboard loaded:", {
-        userId: payload.id,
-        isAdmin: payload.isAdmin,
-        isSuperAdmin: payload.isSuperAdmin,
-        companyId: payload.companyId,
-        companyName: localStorage.getItem("companyName")
-      });
-
     } catch (e) {
       console.error("❌ Token parse error:", e);
       alert("Invalid token. Please login again.");
@@ -125,6 +118,11 @@ const Dashboard = () => {
             isFreePlan: data.plan.planName === 'starter',
             usersUsed: data.usage.users.current,
             usersMax: data.usage.users.max,
+            clientsUsed: data.usage.clients.current,
+            clientsMax: data.usage.clients.max,
+            clientsUnlimited: data.usage.clients.unlimited,
+            storageUsed: parseFloat(data.usage?.storage_used_mb || 0),
+            storageMax: data.plan.limits.storage.maxGB ? data.plan.limits.storage.maxGB * 1024 : null,
           });
         }
       } catch (err) {
@@ -460,27 +458,58 @@ const Dashboard = () => {
     ] : []
   ];
 
+  const sidebarWidth = sidebarCollapsed ? "w-20" : "w-72";
+  const mainMargin = sidebarCollapsed ? "ml-20" : "ml-72";
+
   return (
     <div className="min-h-screen" style={{ background: '#ecf0f3' }}>
-      {/* Sidebar with improved styling */}
+      {/* Collapsible Sidebar */}
       <aside 
-        className="fixed top-0 left-0 h-full w-72 p-6 flex flex-col"
+        className={`fixed top-0 left-0 h-full ${sidebarWidth} p-6 flex flex-col transition-all duration-300`}
         style={{ background: '#ecf0f3' }}
       >
-        {/* Logo - Softer appearance */}
-        <div 
-          className="mb-8 p-5 rounded-2xl flex items-center gap-3"
+        {/* Toggle Button */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="absolute -right-3 top-8 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 z-50"
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '4px 4px 8px rgba(102,126,234,0.3), -2px -2px 6px rgba(255,255,255,0.1)',
+            boxShadow: '2px 2px 6px rgba(102,126,234,0.4)',
           }}
         >
-          <img src="/logo.png" alt="GeoTrack" className="w-10 h-10 object-contain" />
-          <span className="text-xl font-bold text-white">GeoTrack</span>
-        </div>
+          {sidebarCollapsed ? (
+            <ChevronRight className="w-4 h-4 text-white" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-white" />
+          )}
+        </button>
 
-        {/* Company Context - More subtle */}
-        {!isSuperAdmin && userCompany.name && (
+        {/* Logo */}
+        {!sidebarCollapsed ? (
+          <div 
+            className="mb-8 p-5 rounded-2xl flex items-center gap-3"
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '4px 4px 8px rgba(102,126,234,0.3), -2px -2px 6px rgba(255,255,255,0.1)',
+            }}
+          >
+            <img src="/logo.png" alt="GeoTrack" className="w-10 h-10 object-contain" />
+            <span className="text-xl font-bold text-white">GeoTrack</span>
+          </div>
+        ) : (
+          <div 
+            className="mb-8 p-3 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '4px 4px 8px rgba(102,126,234,0.3)',
+            }}
+          >
+            <img src="/logo.png" alt="GeoTrack" className="w-8 h-8 object-contain" />
+          </div>
+        )}
+
+        {/* Company Context */}
+        {!sidebarCollapsed && !isSuperAdmin && userCompany.name && (
           <div 
             className="mb-6 p-3 rounded-xl border border-slate-200"
             style={{
@@ -497,16 +526,11 @@ const Dashboard = () => {
             <p className="text-sm font-semibold truncate" style={{ color: '#1e293b' }}>
               {userCompany.name}
             </p>
-            {userCompany.subdomain && (
-              <p className="text-xs" style={{ color: '#64748b' }}>
-                @{userCompany.subdomain}
-              </p>
-            )}
           </div>
         )}
 
-        {/* Super Admin Indicator */}
-        {isSuperAdmin && (
+        {/* Super Admin Badge */}
+        {!sidebarCollapsed && isSuperAdmin && (
           <div 
             className="mb-6 p-3 rounded-xl border"
             style={{
@@ -526,8 +550,8 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Navigation - Gentler appearance */}
-        <nav className="space-y-2 flex-1">
+        {/* Navigation */}
+        <nav className={`${sidebarCollapsed ? 'space-y-3' : 'space-y-2'} flex-1`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -535,7 +559,7 @@ const Dashboard = () => {
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id)}
-                className="w-full p-4 rounded-xl flex items-center gap-3 transition-all duration-200 group"
+                className={`w-full ${sidebarCollapsed ? 'p-3' : 'p-4'} rounded-xl flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} transition-all duration-200 group relative`}
                 style={
                   isActive
                     ? {
@@ -565,53 +589,75 @@ const Dashboard = () => {
                   className="w-5 h-5" 
                   style={{ color: isActive ? 'white' : '#94a3b8' }}
                 />
-                <span 
-                  className="font-medium text-sm"
-                  style={{ color: isActive ? 'white' : '#64748b' }}
-                >
-                  {item.label}
-                </span>
+                {!sidebarCollapsed && (
+                  <span 
+                    className="font-medium text-sm"
+                    style={{ color: isActive ? 'white' : '#64748b' }}
+                  >
+                    {item.label}
+                  </span>
+                )}
+                {sidebarCollapsed && (
+                  <div 
+                    className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
+                    style={{
+                      background: '#1e293b',
+                      color: 'white',
+                      fontSize: '12px',
+                    }}
+                  >
+                    {item.label}
+                  </div>
+                )}
               </button>
             );
           })}
         </nav>
 
-        {/* Bottom section - Plan Preview */}
-        <div className="mt-auto space-y-3">
-          <button
-            onClick={() => setCurrentPage("billingPlans")}
-            className="w-full p-4 rounded-xl transition-all duration-200 group"
-            style={{
-              background: planPreview?.isFreePlan 
-                ? 'linear-gradient(135deg, rgba(148,163,184,0.1) 0%, rgba(100,116,139,0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
-              border: `1px solid ${planPreview?.isFreePlan ? 'rgba(148,163,184,0.2)' : 'rgba(102,126,234,0.2)'}`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '3px 3px 6px rgba(102,126,234,0.2)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {planPreview?.isFreePlan ? (
-                  <Sparkles className="w-4 h-4" style={{ color: '#94a3b8' }} />
-                ) : (
-                  <Crown className="w-4 h-4" style={{ color: '#667eea' }} />
-                )}
-                <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                  {planPreview?.name || 'Loading...'}
-                </span>
+        {/* Plan Preview */}
+        {!sidebarCollapsed && planPreview && (
+          <div className="mt-auto">
+            <button
+              onClick={() => setCurrentPage("billingPlans")}
+              className="w-full p-4 rounded-xl transition-all duration-200 group"
+              style={{
+                background: planPreview?.isFreePlan 
+                  ? 'linear-gradient(135deg, rgba(148,163,184,0.1) 0%, rgba(100,116,139,0.1) 100%)'
+                  : 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
+                border: `1px solid ${planPreview?.isFreePlan ? 'rgba(148,163,184,0.2)' : 'rgba(102,126,234,0.2)'}`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '3px 3px 6px rgba(102,126,234,0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {planPreview?.isFreePlan ? (
+                    <Sparkles className="w-4 h-4" style={{ color: '#94a3b8' }} />
+                  ) : (
+                    <Crown className="w-4 h-4" style={{ color: '#667eea' }} />
+                  )}
+                  <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                    {planPreview?.name}
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#667eea' }} />
               </div>
-              <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#667eea' }} />
-            </div>
-            {planPreview && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e6eaf0' }}>
+              
+              {/* Users */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs" style={{ color: '#64748b' }}>Users</span>
+                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                    {planPreview.usersUsed}/{planPreview.usersMax}
+                  </span>
+                </div>
+                <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
                   <div 
                     className="h-full rounded-full transition-all"
                     style={{ 
@@ -620,63 +666,103 @@ const Dashboard = () => {
                     }}
                   />
                 </div>
-                <span className="text-xs whitespace-nowrap" style={{ color: '#64748b' }}>
-                  {planPreview.usersUsed}/{planPreview.usersMax} users
-                </span>
               </div>
-            )}
+
+              {/* Clients */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs" style={{ color: '#64748b' }}>Clients</span>
+                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                    {planPreview.clientsUnlimited ? 'Unlimited' : `${planPreview.clientsUsed}/${planPreview.clientsMax}`}
+                  </span>
+                </div>
+                {!planPreview.clientsUnlimited && (
+                  <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
+                    <div 
+                      className="h-full rounded-full transition-all"
+                      style={{ 
+                        width: `${Math.min((planPreview.clientsUsed / planPreview.clientsMax) * 100, 100)}%`,
+                        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Storage */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs" style={{ color: '#64748b' }}>Storage</span>
+                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                    {planPreview.storageMax === null ? 'Unlimited' : 
+                      `${(planPreview.storageUsed / 1024).toFixed(1)}/${(planPreview.storageMax / 1024).toFixed(0)} GB`
+                    }
+                  </span>
+                </div>
+                {planPreview.storageMax !== null && (
+                  <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
+                    <div 
+                      className="h-full rounded-full transition-all"
+                      style={{ 
+                        width: `${Math.min((planPreview.storageUsed / planPreview.storageMax) * 100, 100)}%`,
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Collapsed Plan Icon */}
+        {sidebarCollapsed && (
+          <button
+            onClick={() => setCurrentPage("billingPlans")}
+            className="w-full p-3 rounded-xl flex items-center justify-center transition-all hover:scale-105 relative group"
+            style={{
+              background: 'linear-gradient(              135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%)',
+            }}
+          >
+            <Crown className="w-5 h-5" style={{ color: '#667eea' }} />
+            <div
+              className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
+              style={{
+                background: '#1e293b',
+                color: 'white',
+                fontSize: '12px',
+              }}
+            >
+              Billing & Plans
+            </div>
           </button>
-        </div>
+        )}
       </aside>
 
       {/* Main Content */}
-      <main className="ml-72 p-6 max-h-screen overflow-y-auto">
-        {/* Page Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-1" style={{ color: '#1e293b' }}>
-              {currentPage === "analytics" && "Dashboard Overview"}
-              {currentPage === "clients" && "Client Management"}
-              {currentPage === "clientServices" && "Client Services"}
-              {currentPage === "companyManagement" && "Company Management"}
-              {currentPage === "users" && "Team Activity"}
-              {currentPage === "userManagement" && "User Management"}
-              {currentPage === "userLogs" && "Location Tracking"}
-              {currentPage === "userMeetings" && "Meeting History"}
-              {currentPage === "userExpenses" && "Expense Reports"}
-              {currentPage === "billingPlans" && "Pricing Plans"}       
-              {currentPage === "billingHistory" && "Billing History"} 
-            </h1>
-            <p style={{ color: '#64748b' }}>
-              {currentPage === "analytics" && "Monitor your business performance"}
-              {currentPage === "clients" && "View and manage all your clients"}
-              {currentPage === "clientServices" && "Manage all client service subscriptions"}
-              {currentPage === "companyManagement" && "Manage company settings and subscriptions"}
-              {currentPage === "users" && "Track your team members"}
-              {currentPage === "userManagement" && "Add, edit, and manage user accounts"}
-              {currentPage === "userLogs" && "Detailed location history"}
-              {currentPage === "userMeetings" && "Complete meeting logs"}
-              {currentPage === "userExpenses" && "Track and review expenses"}
-              {currentPage === "billingPlans" && "View and manage subscription plans"}     
-              {currentPage === "billingHistory" && "View past billing and invoices"} 
-            </p>
-          </div>
+      <main className={`${mainMargin} p-8 transition-all duration-300`}>
+        {/* Top Bar */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-slate-800 capitalize">
+            {currentPage.replace(/([A-Z])/g, " $1")}
+          </h1>
 
           <div className="flex items-center gap-4">
-            {currentPage === "analytics" && syncStatus && (
-              <button 
+            {/* Refresh */}
+            {["analytics", "clients", "users"].includes(currentPage) && (
+              <button
                 onClick={fetchData}
                 className="w-12 h-12 rounded-xl flex items-center justify-center transition-all hover:scale-105"
                 style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  boxShadow: '4px 4px 8px rgba(102, 126, 234, 0.4)',
+                  boxShadow: '4px 4px 8px rgba(102,126,234,0.4)',
                 }}
               >
                 <RefreshCw className="w-5 h-5 text-white" />
               </button>
             )}
 
-            {/* Profile Dropdown */}
+            {/* Profile */}
             <div className="relative profile-dropdown">
               <button
                 onClick={() => setProfileOpen(p => !p)}
@@ -694,38 +780,34 @@ const Dashboard = () => {
                   className="absolute right-0 mt-4 w-64 rounded-2xl p-4 z-50"
                   style={{
                     background: '#ecf0f3',
-                    boxShadow: '6px 6px 12px rgba(163,177,198,0.4), -6px -6px 12px rgba(255,255,255,0.8)',
+                    boxShadow:
+                      '6px 6px 12px rgba(163,177,198,0.4), -6px -6px 12px rgba(255,255,255,0.8)',
                   }}
                 >
-                  <div className="mb-4">
-                    <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                      {isSuperAdmin ? "Super Admin Account" : "Admin Account"}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: '#64748b' }}>
-                      {localStorage.getItem("userEmail") || ""}
-                    </p>
-                    {!isSuperAdmin && userCompany.name && (
-                      <p className="text-xs mt-1" style={{ color: '#667eea' }}>
-                        {userCompany.name}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {isSuperAdmin ? "Super Admin Account" : "Admin Account"}
+                  </p>
+                  <p className="text-xs truncate text-slate-500">
+                    {localStorage.getItem("userEmail") || ""}
+                  </p>
 
-                  <div className="my-2" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }} />
+                  <div className="my-3 border-t border-slate-200" />
 
                   <button
                     onClick={() => {
                       localStorage.clear();
                       window.location.href = "/login";
                     }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.02]"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl"
                     style={{
                       background: '#fee2e2',
                       boxShadow: '2px 2px 4px rgba(239,68,68,0.2)',
                     }}
                   >
                     <LogOut className="w-4 h-4 text-red-600" />
-                    <span className="text-sm font-semibold text-red-600">Logout</span>
+                    <span className="text-sm font-semibold text-red-600">
+                      Logout
+                    </span>
                   </button>
                 </div>
               )}
@@ -733,34 +815,17 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Error Display */}
+        {/* Error */}
         {error && (
-          <div 
-            className="mb-6 p-5 rounded-2xl border-l-4"
-            style={{
-              background: '#fed7d7',
-              borderColor: '#fc8181',
-              boxShadow: '4px 4px 8px rgba(252,129,129,0.2)'
-            }}
-          >
-            <p style={{ color: '#c53030' }} className="font-medium">{error}</p>
+          <div className="mb-6 p-5 rounded-2xl bg-red-100 border-l-4 border-red-400">
+            <p className="font-medium text-red-700">{error}</p>
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Page Routing */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-96">
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center"
-              style={{
-                background: '#f8fafc',
-                boxShadow: '4px 4px 8px rgba(148,163,184,0.2)',
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-              }}
-            >
-              <TrendingUp className="w-8 h-8" style={{ color: '#667eea' }} />
-            </div>
-            <p className="mt-6 font-medium" style={{ color: '#718096' }}>Loading your data...</p>
+          <div className="flex items-center justify-center h-96">
+            <TrendingUp className="w-10 h-10 text-indigo-500 animate-pulse" />
           </div>
         ) : currentPage === "analytics" ? (
           <AnalyticsPage
@@ -769,10 +834,6 @@ const Dashboard = () => {
             onRefresh={fetchData}
             onGoToClients={() => setCurrentPage("clients")}
             onGoToUsers={() => setCurrentPage("users")}
-            onSelectUser={(user) => {
-              setSelectedUser(user);
-              setCurrentPage("users");
-            }}
           />
         ) : currentPage === "clients" ? (
           <ClientsPage
@@ -847,17 +908,18 @@ const Dashboard = () => {
           />
         ) : currentPage === "companyManagement" ? (
           <CompanyManagementPage onRefresh={fetchData} />
-        ) : currentPage === "billingPlans" ? (     
+        ) : currentPage === "billingPlans" ? (
           <>
             <PlanUsageWidget />
             <div className="mt-6">
               <BillingPlansPage />
             </div>
           </>
-        ) : currentPage === "billingHistory" ? (    
+        ) : currentPage === "billingHistory" ? (
           <BillingHistoryPage />
         ) : null}
 
+        {/* Client Services Modal */}
         {selectedClientForServices && (
           <ClientServicesModal
             client={selectedClientForServices}
