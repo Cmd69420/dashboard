@@ -83,68 +83,123 @@ const InsightCard = ({ icon: Icon, gradient, title, value, subtitle }) => (
   </NeumorphicCard>
 );
 
-// Custom 3D Pie Cell Component
+// Enhanced 3D Pie Cell Component with dramatic depth
 const Render3DPieCell = (props) => {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   
-  // Calculate path for the pie slice
   const RADIAN = Math.PI / 180;
-  const sin = Math.sin(-RADIAN * endAngle);
-  const cos = Math.cos(-RADIAN * endAngle);
-  const sin2 = Math.sin(-RADIAN * startAngle);
-  const cos2 = Math.cos(-RADIAN * startAngle);
   
-  const sx = cx + outerRadius * cos2;
-  const sy = cy + outerRadius * sin2;
-  const mx = cx + outerRadius * cos;
-  const my = cy + outerRadius * sin;
-  const ex = cx + innerRadius * cos;
-  const ey = cy + innerRadius * sin;
-  const ex2 = cx + innerRadius * cos2;
-  const ey2 = cy + innerRadius * sin2;
+  // Increased depth for more dramatic 3D effect
+  const depth = 20;
   
-  // 3D depth offset
-  const depth = 8;
+  // Calculate points for outer arc
+  const startOuterX = cx + outerRadius * Math.cos(-startAngle * RADIAN);
+  const startOuterY = cy + outerRadius * Math.sin(-startAngle * RADIAN);
+  const endOuterX = cx + outerRadius * Math.cos(-endAngle * RADIAN);
+  const endOuterY = cy + outerRadius * Math.sin(-endAngle * RADIAN);
+  
+  // Calculate points for inner arc
+  const startInnerX = cx + innerRadius * Math.cos(-startAngle * RADIAN);
+  const startInnerY = cy + innerRadius * Math.sin(-startAngle * RADIAN);
+  const endInnerX = cx + innerRadius * Math.cos(-endAngle * RADIAN);
+  const endInnerY = cy + innerRadius * Math.sin(-endAngle * RADIAN);
+  
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  
+  // Determine if this slice faces toward the viewer (bottom half)
+  const midAngle = (startAngle + endAngle) / 2;
+  const showSide = midAngle > 0 && midAngle < 180;
   
   return (
     <g>
       <defs>
-        <linearGradient id={`gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={fill} stopOpacity="1" />
-          <stop offset="100%" stopColor={fill} stopOpacity="0.6" />
+        {/* Top surface gradient - lighter at top */}
+        <linearGradient id={`top-gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={fill} stopOpacity="1" style={{ filter: 'brightness(1.3)' }} />
+          <stop offset="100%" stopColor={fill} stopOpacity="1" />
         </linearGradient>
-        <filter id={`shadow-${fill}-${startAngle}`}>
-          <feDropShadow dx="2" dy="2" stdDeviation="2" floodOpacity="0.3"/>
+        
+        {/* Side surface - darker */}
+        <linearGradient id={`side-gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={fill} stopOpacity="0.7" />
+          <stop offset="100%" stopColor={fill} stopOpacity="0.4" />
+        </linearGradient>
+        
+        <filter id={`shadow-3d-${fill}-${startAngle}`}>
+          <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+          <feOffset dx="2" dy="3" result="offsetblur"/>
+          <feFlood floodColor="#000000" floodOpacity="0.3"/>
+          <feComposite in2="offsetblur" operator="in"/>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
         </filter>
       </defs>
       
-      {/* Bottom/depth layer */}
-      <path
-        d={`M ${sx},${sy + depth} 
-            A ${outerRadius},${outerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 1 ${mx},${my + depth}
-            L ${ex},${ey + depth}
-            A ${innerRadius},${innerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 0 ${ex2},${ey2 + depth}
-            Z`}
-        fill={fill}
-        opacity="0.4"
-      />
+      {/* Outer side wall (only visible for bottom-facing slices) */}
+      {showSide && (
+        <path
+          d={`M ${startOuterX} ${startOuterY}
+              L ${startOuterX} ${startOuterY + depth}
+              A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${endOuterX} ${endOuterY + depth}
+              L ${endOuterX} ${endOuterY}
+              A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${startOuterX} ${startOuterY}
+              Z`}
+          fill={`url(#side-gradient-${fill}-${startAngle})`}
+          opacity="0.8"
+        />
+      )}
       
-      {/* Side edges for 3D effect */}
-      <path
-        d={`M ${sx},${sy} L ${sx},${sy + depth} L ${mx},${my + depth} L ${mx},${my} Z`}
-        fill={fill}
-        opacity="0.5"
-      />
+      {/* Inner side wall (donut hole depth) */}
+      {showSide && (
+        <path
+          d={`M ${startInnerX} ${startInnerY}
+              L ${startInnerX} ${startInnerY + depth}
+              A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${endInnerX} ${endInnerY + depth}
+              L ${endInnerX} ${endInnerY}
+              A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${startInnerX} ${startInnerY}
+              Z`}
+          fill={fill}
+          opacity="0.3"
+        />
+      )}
       
-      {/* Top layer with gradient */}
+      {/* Right edge face */}
+      {showSide && (
+        <path
+          d={`M ${endOuterX} ${endOuterY}
+              L ${endOuterX} ${endOuterY + depth}
+              L ${endInnerX} ${endInnerY + depth}
+              L ${endInnerX} ${endInnerY}
+              Z`}
+          fill={fill}
+          opacity="0.6"
+        />
+      )}
+      
+      {/* Left edge face */}
+      {showSide && (
+        <path
+          d={`M ${startOuterX} ${startOuterY}
+              L ${startOuterX} ${startOuterY + depth}
+              L ${startInnerX} ${startInnerY + depth}
+              L ${startInnerX} ${startInnerY}
+              Z`}
+          fill={fill}
+          opacity="0.6"
+        />
+      )}
+      
+      {/* Top surface with enhanced lighting */}
       <path
-        d={`M ${sx},${sy} 
-            A ${outerRadius},${outerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 1 ${mx},${my}
-            L ${ex},${ey}
-            A ${innerRadius},${innerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 0 ${ex2},${ey2}
+        d={`M ${startOuterX} ${startOuterY}
+            A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${endOuterX} ${endOuterY}
+            L ${endInnerX} ${endInnerY}
+            A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${startInnerX} ${startInnerY}
             Z`}
-        fill={`url(#gradient-${fill}-${startAngle})`}
-        filter={`url(#shadow-${fill}-${startAngle})`}
+        fill={`url(#top-gradient-${fill}-${startAngle})`}
+        filter={`url(#shadow-3d-${fill}-${startAngle})`}
       />
     </g>
   );
