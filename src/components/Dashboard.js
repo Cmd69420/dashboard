@@ -465,279 +465,285 @@ const Dashboard = () => {
     <div className="min-h-screen" style={{ background: '#ecf0f3' }}>
       {/* Collapsible Sidebar */}
       <aside 
-        className={`fixed top-0 left-0 h-full ${sidebarWidth} p-6 flex flex-col transition-all duration-300`}
-        style={{ background: '#ecf0f3' }}
+  className={`fixed top-0 left-0 h-full ${sidebarWidth} flex flex-col transition-all duration-300`}
+  style={{ background: '#ecf0f3', zIndex: 40 }}
+>
+  {/* Toggle Button */}
+  <button
+    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+    className="absolute -right-3 top-8 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 z-50"
+    style={{
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      boxShadow: '2px 2px 6px rgba(102,126,234,0.4)',
+    }}
+  >
+    {sidebarCollapsed ? (
+      <ChevronRight className="w-4 h-4 text-white" />
+    ) : (
+      <ChevronLeft className="w-4 h-4 text-white" />
+    )}
+  </button>
+
+  {/* Scrollable Content Container */}
+  <div className={`flex-1 overflow-y-auto overflow-x-hidden ${sidebarCollapsed ? 'px-3' : 'px-6'} py-6`}>
+    {/* Logo */}
+    {!sidebarCollapsed ? (
+      <div 
+        className="mb-8 p-5 rounded-2xl flex items-center gap-3"
+        style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          boxShadow: '4px 4px 8px rgba(102,126,234,0.3), -2px -2px 6px rgba(255,255,255,0.1)',
+        }}
       >
-        {/* Toggle Button */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="absolute -right-3 top-8 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110 z-50"
-          style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '2px 2px 6px rgba(102,126,234,0.4)',
-          }}
-        >
-          {sidebarCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-white" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-white" />
-          )}
-        </button>
+        <img src="/logo.png" alt="GeoTrack" className="w-10 h-10 object-contain" />
+        <span className="text-xl font-bold text-white">GeoTrack</span>
+      </div>
+    ) : (
+      <div 
+        className="mb-8 p-3 rounded-2xl flex items-center justify-center mx-auto"
+        style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          boxShadow: '4px 4px 8px rgba(102,126,234,0.3)',
+          width: '48px',
+        }}
+      >
+        <img src="/logo.png" alt="GeoTrack" className="w-8 h-8 object-contain" />
+      </div>
+    )}
 
-        {/* Logo */}
-        {!sidebarCollapsed ? (
-          <div 
-            className="mb-8 p-5 rounded-2xl flex items-center gap-3"
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '4px 4px 8px rgba(102,126,234,0.3), -2px -2px 6px rgba(255,255,255,0.1)',
-            }}
-          >
-            <img src="/logo.png" alt="GeoTrack" className="w-10 h-10 object-contain" />
-            <span className="text-xl font-bold text-white">GeoTrack</span>
-          </div>
-        ) : (
-          <div 
-            className="mb-8 p-3 rounded-2xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '4px 4px 8px rgba(102,126,234,0.3)',
-            }}
-          >
-            <img src="/logo.png" alt="GeoTrack" className="w-8 h-8 object-contain" />
-          </div>
-        )}
+    {/* Company Context */}
+    {!sidebarCollapsed && !isSuperAdmin && userCompany.name && (
+      <div 
+        className="mb-6 p-3 rounded-xl border border-slate-200"
+        style={{
+          background: '#f8fafc',
+          boxShadow: '2px 2px 4px rgba(148,163,184,0.15)',
+        }}
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <Building2 className="w-3.5 h-3.5" style={{ color: '#667eea' }} />
+          <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#94a3b8' }}>
+            Company
+          </span>
+        </div>
+        <p className="text-sm font-semibold truncate" style={{ color: '#1e293b' }}>
+          {userCompany.name}
+        </p>
+      </div>
+    )}
 
-        {/* Company Context */}
-        {!sidebarCollapsed && !isSuperAdmin && userCompany.name && (
-          <div 
-            className="mb-6 p-3 rounded-xl border border-slate-200"
-            style={{
-              background: '#f8fafc',
-              boxShadow: '2px 2px 4px rgba(148,163,184,0.15)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Building2 className="w-3.5 h-3.5" style={{ color: '#667eea' }} />
-              <span className="text-xs font-medium uppercase tracking-wide" style={{ color: '#94a3b8' }}>
-                Company
-              </span>
-            </div>
-            <p className="text-sm font-semibold truncate" style={{ color: '#1e293b' }}>
-              {userCompany.name}
-            </p>
-          </div>
-        )}
+    {/* Super Admin Badge */}
+    {!sidebarCollapsed && isSuperAdmin && (
+      <div 
+        className="mb-6 p-3 rounded-xl border"
+        style={{
+          background: 'linear-gradient(135deg, rgba(250,112,154,0.1), rgba(254,225,64,0.1))',
+          border: '1px solid rgba(250,112,154,0.3)',
+        }}
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="w-3.5 h-3.5" style={{ color: '#fa709a' }} />
+          <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#fa709a' }}>
+            Super Admin
+          </span>
+        </div>
+        <p className="text-xs" style={{ color: '#64748b' }}>
+          All companies access
+        </p>
+      </div>
+    )}
 
-        {/* Super Admin Badge */}
-        {!sidebarCollapsed && isSuperAdmin && (
-          <div 
-            className="mb-6 p-3 rounded-xl border"
-            style={{
-              background: 'linear-gradient(135deg, rgba(250,112,154,0.1), rgba(254,225,64,0.1))',
-              border: '1px solid rgba(250,112,154,0.3)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-3.5 h-3.5" style={{ color: '#fa709a' }} />
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#fa709a' }}>
-                Super Admin
-              </span>
-            </div>
-            <p className="text-xs" style={{ color: '#64748b' }}>
-              All companies access
-            </p>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <nav className={`${sidebarCollapsed ? 'space-y-3' : 'space-y-2'} flex-1`}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPage === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setCurrentPage(item.id)}
-                className={`w-full ${sidebarCollapsed ? 'p-3' : 'p-4'} rounded-xl flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} transition-all duration-200 group relative`}
-                style={
-                  isActive
-                    ? {
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        boxShadow: '3px 3px 6px rgba(102,126,234,0.4)',
-                        color: 'white',
-                      }
-                    : {
-                        background: 'transparent',
-                        color: '#64748b',
-                      }
-                }
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.boxShadow = '2px 2px 4px rgba(148,163,184,0.1)';
+    {/* Navigation */}
+    <nav className="space-y-2 mb-6">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = currentPage === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => setCurrentPage(item.id)}
+            className={`w-full ${sidebarCollapsed ? 'p-3' : 'p-4'} rounded-xl flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} transition-all duration-200 group relative`}
+            style={
+              isActive
+                ? {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '3px 3px 6px rgba(102,126,234,0.4)',
+                    color: 'white',
                   }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.boxShadow = 'none';
+                : {
+                    background: 'transparent',
+                    color: '#64748b',
                   }
+            }
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.boxShadow = '2px 2px 4px rgba(148,163,184,0.1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            <Icon 
+              className="w-5 h-5 flex-shrink-0" 
+              style={{ color: isActive ? 'white' : '#94a3b8' }}
+            />
+            {!sidebarCollapsed && (
+              <span 
+                className="font-medium text-sm"
+                style={{ color: isActive ? 'white' : '#64748b' }}
+              >
+                {item.label}
+              </span>
+            )}
+            {sidebarCollapsed && (
+              <div 
+                className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
+                style={{
+                  background: '#1e293b',
+                  color: 'white',
+                  fontSize: '12px',
                 }}
               >
-                <Icon 
-                  className="w-5 h-5" 
-                  style={{ color: isActive ? 'white' : '#94a3b8' }}
-                />
-                {!sidebarCollapsed && (
-                  <span 
-                    className="font-medium text-sm"
-                    style={{ color: isActive ? 'white' : '#64748b' }}
-                  >
-                    {item.label}
-                  </span>
-                )}
-                {sidebarCollapsed && (
-                  <div 
-                    className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
-                    style={{
-                      background: '#1e293b',
-                      color: 'white',
-                      fontSize: '12px',
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+                {item.label}
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </nav>
 
-        {/* Plan Preview */}
-        {!sidebarCollapsed && planPreview && (
-          <div className="mt-auto">
-            <button
-              onClick={() => setCurrentPage("billingPlans")}
-              className="w-full p-4 rounded-xl transition-all duration-200 group"
-              style={{
-                background: planPreview?.isFreePlan 
-                  ? 'linear-gradient(135deg, rgba(148,163,184,0.1) 0%, rgba(100,116,139,0.1) 100%)'
-                  : 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
-                border: `1px solid ${planPreview?.isFreePlan ? 'rgba(148,163,184,0.2)' : 'rgba(102,126,234,0.2)'}`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '3px 3px 6px rgba(102,126,234,0.2)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {planPreview?.isFreePlan ? (
-                    <Sparkles className="w-4 h-4" style={{ color: '#94a3b8' }} />
-                  ) : (
-                    <Crown className="w-4 h-4" style={{ color: '#667eea' }} />
-                  )}
-                  <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                    {planPreview?.name}
-                  </span>
-                </div>
-                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#667eea' }} />
-              </div>
-              
-              {/* Users */}
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: '#64748b' }}>Users</span>
-                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
-                    {planPreview.usersUsed}/{planPreview.usersMax}
-                  </span>
-                </div>
-                <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
-                  <div 
-                    className="h-full rounded-full transition-all"
-                    style={{ 
-                      width: `${Math.min((planPreview.usersUsed / planPreview.usersMax) * 100, 100)}%`,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Clients */}
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: '#64748b' }}>Clients</span>
-                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
-                    {planPreview.clientsUnlimited ? 'Unlimited' : `${planPreview.clientsUsed}/${planPreview.clientsMax}`}
-                  </span>
-                </div>
-                {!planPreview.clientsUnlimited && (
-                  <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
-                    <div 
-                      className="h-full rounded-full transition-all"
-                      style={{ 
-                        width: `${Math.min((planPreview.clientsUsed / planPreview.clientsMax) * 100, 100)}%`,
-                        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Storage */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: '#64748b' }}>Storage</span>
-                  <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
-                    {planPreview.storageMax === null ? 'Unlimited' : 
-                      `${(planPreview.storageUsed / 1024).toFixed(1)}/${(planPreview.storageMax / 1024).toFixed(0)} GB`
-                    }
-                  </span>
-                </div>
-                {planPreview.storageMax !== null && (
-                  <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
-                    <div 
-                      className="h-full rounded-full transition-all"
-                      style={{ 
-                        width: `${Math.min((planPreview.storageUsed / planPreview.storageMax) * 100, 100)}%`,
-                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </button>
+    {/* Plan Preview */}
+    {!sidebarCollapsed && planPreview && (
+      <div>
+        <button
+          onClick={() => setCurrentPage("billingPlans")}
+          className="w-full p-4 rounded-xl transition-all duration-200 group"
+          style={{
+            background: planPreview?.isFreePlan 
+              ? 'linear-gradient(135deg, rgba(148,163,184,0.1) 0%, rgba(100,116,139,0.1) 100%)'
+              : 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
+            border: `1px solid ${planPreview?.isFreePlan ? 'rgba(148,163,184,0.2)' : 'rgba(102,126,234,0.2)'}`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '3px 3px 6px rgba(102,126,234,0.2)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = 'none';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {planPreview?.isFreePlan ? (
+                <Sparkles className="w-4 h-4" style={{ color: '#94a3b8' }} />
+              ) : (
+                <Crown className="w-4 h-4" style={{ color: '#667eea' }} />
+              )}
+              <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                {planPreview?.name}
+              </span>
+            </div>
+            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#667eea' }} />
           </div>
-        )}
+          
+          {/* Users */}
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs" style={{ color: '#64748b' }}>Users</span>
+              <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                {planPreview.usersUsed}/{planPreview.usersMax}
+              </span>
+            </div>
+            <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
+              <div 
+                className="h-full rounded-full transition-all"
+                style={{ 
+                  width: `${Math.min((planPreview.usersUsed / planPreview.usersMax) * 100, 100)}%`,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                }}
+              />
+            </div>
+          </div>
 
-        {/* Collapsed Plan Icon */}
-        {sidebarCollapsed && (
-          <button
-            onClick={() => setCurrentPage("billingPlans")}
-            className="w-full p-3 rounded-xl flex items-center justify-center transition-all hover:scale-105 relative group"
+          {/* Clients */}
+          <div className="mb-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs" style={{ color: '#64748b' }}>Clients</span>
+              <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                {planPreview.clientsUnlimited ? 'Unlimited' : `${planPreview.clientsUsed}/${planPreview.clientsMax}`}
+              </span>
+            </div>
+            {!planPreview.clientsUnlimited && (
+              <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
+                <div 
+                  className="h-full rounded-full transition-all"
+                  style={{ 
+                    width: `${Math.min((planPreview.clientsUsed / planPreview.clientsMax) * 100, 100)}%`,
+                    background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Storage */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs" style={{ color: '#64748b' }}>Storage</span>
+              <span className="text-xs font-semibold" style={{ color: '#1e293b' }}>
+                {planPreview.storageMax === null ? 'Unlimited' : 
+                  `${(planPreview.storageUsed / 1024).toFixed(1)}/${(planPreview.storageMax / 1024).toFixed(0)} GB`
+                }
+              </span>
+            </div>
+            {planPreview.storageMax !== null && (
+              <div className="h-1 rounded-full" style={{ background: '#e6eaf0' }}>
+                <div 
+                  className="h-full rounded-full transition-all"
+                  style={{ 
+                    width: `${Math.min((planPreview.storageUsed / planPreview.storageMax) * 100, 100)}%`,
+                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </button>
+      </div>
+    )}
+
+    {/* Collapsed Plan Icon */}
+    {sidebarCollapsed && planPreview && (
+      <div className="mt-6">
+        <button
+          onClick={() => setCurrentPage("billingPlans")}
+          className="w-full p-3 rounded-xl flex items-center justify-center transition-all hover:scale-105 relative group"
+          style={{
+            background: 'linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%)',
+          }}
+        >
+          <Crown className="w-5 h-5" style={{ color: '#667eea' }} />
+          <div
+            className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
             style={{
-              background: 'linear-gradient(              135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%)',
+              background: '#1e293b',
+              color: 'white',
+              fontSize: '12px',
             }}
           >
-            <Crown className="w-5 h-5" style={{ color: '#667eea' }} />
-            <div
-              className="absolute left-full ml-2 px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
-              style={{
-                background: '#1e293b',
-                color: 'white',
-                fontSize: '12px',
-              }}
-            >
-              Billing & Plans
-            </div>
-          </button>
-        )}
-      </aside>
+            Billing & Plans
+          </div>
+        </button>
+      </div>
+    )}
+  </div>
+</aside>
 
       {/* Main Content */}
       <main className={`${mainMargin} p-8 transition-all duration-300`}>
