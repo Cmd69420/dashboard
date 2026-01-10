@@ -83,6 +83,73 @@ const InsightCard = ({ icon: Icon, gradient, title, value, subtitle }) => (
   </NeumorphicCard>
 );
 
+// Custom 3D Pie Cell Component
+const Render3DPieCell = (props) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+  
+  // Calculate path for the pie slice
+  const RADIAN = Math.PI / 180;
+  const sin = Math.sin(-RADIAN * endAngle);
+  const cos = Math.cos(-RADIAN * endAngle);
+  const sin2 = Math.sin(-RADIAN * startAngle);
+  const cos2 = Math.cos(-RADIAN * startAngle);
+  
+  const sx = cx + outerRadius * cos2;
+  const sy = cy + outerRadius * sin2;
+  const mx = cx + outerRadius * cos;
+  const my = cy + outerRadius * sin;
+  const ex = cx + innerRadius * cos;
+  const ey = cy + innerRadius * sin;
+  const ex2 = cx + innerRadius * cos2;
+  const ey2 = cy + innerRadius * sin2;
+  
+  // 3D depth offset
+  const depth = 8;
+  
+  return (
+    <g>
+      <defs>
+        <linearGradient id={`gradient-${fill}-${startAngle}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={fill} stopOpacity="1" />
+          <stop offset="100%" stopColor={fill} stopOpacity="0.6" />
+        </linearGradient>
+        <filter id={`shadow-${fill}-${startAngle}`}>
+          <feDropShadow dx="2" dy="2" stdDeviation="2" floodOpacity="0.3"/>
+        </filter>
+      </defs>
+      
+      {/* Bottom/depth layer */}
+      <path
+        d={`M ${sx},${sy + depth} 
+            A ${outerRadius},${outerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 1 ${mx},${my + depth}
+            L ${ex},${ey + depth}
+            A ${innerRadius},${innerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 0 ${ex2},${ey2 + depth}
+            Z`}
+        fill={fill}
+        opacity="0.4"
+      />
+      
+      {/* Side edges for 3D effect */}
+      <path
+        d={`M ${sx},${sy} L ${sx},${sy + depth} L ${mx},${my + depth} L ${mx},${my} Z`}
+        fill={fill}
+        opacity="0.5"
+      />
+      
+      {/* Top layer with gradient */}
+      <path
+        d={`M ${sx},${sy} 
+            A ${outerRadius},${outerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 1 ${mx},${my}
+            L ${ex},${ey}
+            A ${innerRadius},${innerRadius} 0 ${endAngle - startAngle > 180 ? 1 : 0} 0 ${ex2},${ey2}
+            Z`}
+        fill={`url(#gradient-${fill}-${startAngle})`}
+        filter={`url(#shadow-${fill}-${startAngle})`}
+      />
+    </g>
+  );
+};
+
 const AnalyticsPage = ({
   analyticsData,
   syncStatus,
@@ -290,13 +357,21 @@ const AnalyticsPage = ({
                 dataKey="value"
                 innerRadius={45}
                 outerRadius={70}
-                paddingAngle={5}
+                paddingAngle={3}
+                shape={<Render3DPieCell />}
               >
                 {clientStatusData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{
+                  background: '#ecf0f3',
+                  border: 'none',
+                  borderRadius: '12px',
+                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
+                }}
+              />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -313,13 +388,21 @@ const AnalyticsPage = ({
                 dataKey="value"
                 innerRadius={45}
                 outerRadius={70}
-                paddingAngle={5}
+                paddingAngle={3}
+                shape={<Render3DPieCell />}
               >
                 {gpsStatusData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{
+                  background: '#ecf0f3',
+                  border: 'none',
+                  borderRadius: '12px',
+                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
+                }}
+              />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -333,8 +416,15 @@ const AnalyticsPage = ({
             <BarChart data={topAreasData} layout="vertical">
               <XAxis type="number" />
               <YAxis type="category" dataKey="area" />
-              <Tooltip />
-              <Bar dataKey="clients" fill="#667eea" />
+              <Tooltip 
+                contentStyle={{
+                  background: '#ecf0f3',
+                  border: 'none',
+                  borderRadius: '12px',
+                  boxShadow: '4px 4px 8px rgba(163,177,198,0.5)',
+                }}
+              />
+              <Bar dataKey="clients" fill="#667eea" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </NeumorphicCard>
