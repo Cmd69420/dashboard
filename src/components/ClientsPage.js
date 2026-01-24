@@ -63,7 +63,7 @@ const ClientsPage = ({
     const fetchAllClients = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch('https://backup-server-q2dc.onrender.com/admin/clients?limit=10000', {
+        const response = await fetch('https://backup-server-q2dc.onrender.com/admin/clients?limit=15000', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -90,7 +90,7 @@ const ClientsPage = ({
       );
     } else {
       setIsSearching(false);
-      filtered = clients;
+      filtered = allclients;
     }
 
     // Apply status filter
