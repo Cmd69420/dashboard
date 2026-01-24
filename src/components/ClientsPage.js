@@ -90,7 +90,7 @@ const ClientsPage = ({
       );
     } else {
       setIsSearching(false);
-      filtered = allclients;
+      filtered = allClients;
     }
 
     // Apply status filter
