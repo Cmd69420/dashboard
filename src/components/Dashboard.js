@@ -39,7 +39,7 @@ const Dashboard = () => {
   // clients + pagination
   const [clients, setClients] = useState([]);
   const [clientsPage, setClientsPage] = useState(1);
-  const CLIENTS_PER_PAGE = 200;
+  const CLIENTS_PER_PAGE = 50;
   const [clientsTotalPages, setClientsTotalPages] = useState(1);
   const [clientsTotal, setClientsTotal] = useState(0);
   const [billingOpen, setBillingOpen] = useState(false);  
