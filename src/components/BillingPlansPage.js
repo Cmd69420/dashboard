@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, TrendingUp } from "lucide-react";
-import CheckoutPage from "./Checkoutpage";
+import CheckoutPage from "./CheckoutPage";
 
 const PRODUCT_ID = "69589d3ba7306459dd47fd87";
 const API_BASE = "https://backup-server-q2dc.onrender.com";
