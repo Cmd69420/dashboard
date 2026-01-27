@@ -16,6 +16,7 @@ import CompanyManagementPage from './CompanyManagementPage';
 import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 import PlanUsageWidget from './PlanUsageWidget';
+import SlotExpansionPage from './SlotExpansionPage';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
@@ -455,6 +456,7 @@ const Dashboard = () => {
     { id: "userManagement", label: "User Management", icon: Settings },
     ...(isSuperAdmin) ? [
       { id: "companyManagement", label: "Company Management", icon: Building2 },
+      { id: "slotExpansion", label: "Expand Capacity", icon: Plus },
     ] : []
   ];
 
@@ -923,6 +925,9 @@ const Dashboard = () => {
           </>
         ) : currentPage === "billingHistory" ? (
           <BillingHistoryPage />
+
+        ) : currentPage === "slotExpansion" ? (
+        <SlotExpansionPage />
         ) : null}
 
         {/* Client Services Modal */}

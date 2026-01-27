@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { Plus, TrendingUp } from "lucide-react";
 
 const PRODUCT_ID = "69589d3ba7306459dd47fd87";
-const API_BASE = "https://backup-server-q2dc.onrender.com"; // Change to your backend URL
+const API_BASE = "https://backup-server-q2dc.onrender.com";
 
-export default function BillingPlansPage() {
+export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [companyLicense, setCompanyLicense] = useState(null);
@@ -13,10 +14,8 @@ export default function BillingPlansPage() {
   const [showModal, setShowModal] = useState(false);
   const [renewType, setRenewType] = useState("manual");
 
-  // Get token from localStorage
   const token = localStorage.getItem("token");
 
-  /* ================= FETCH COMPANY LICENSE (FROM YOUR BACKEND) ================= */
   useEffect(() => {
     if (!token) {
       console.warn("No auth token found");
@@ -49,7 +48,6 @@ export default function BillingPlansPage() {
     fetchLicense();
   }, [token]);
 
-  /* ================= FETCH USER COUNT ================= */
   useEffect(() => {
     if (!token) return;
 
@@ -78,7 +76,6 @@ export default function BillingPlansPage() {
     fetchUserCount();
   }, [token]);
 
-  /* ================= FETCH PLANS FROM LMS ================= */
   useEffect(() => {
     const fetchPlans = async () => {
       try {
@@ -104,12 +101,10 @@ export default function BillingPlansPage() {
     fetchPlans();
   }, []);
 
-  /* ================= HELPERS ================= */
   const isCurrentPlan = (plan) => {
     if (!companyLicense?.license?.plan) return false;
     if (!plan?.licenseType?.name) return false;
 
-    // Match by plan name (e.g., "Standard", "Professional", "Business")
     return (
       companyLicense.license.plan.toLowerCase() === 
       plan.licenseType.name.toLowerCase()
@@ -141,15 +136,11 @@ export default function BillingPlansPage() {
       companySubdomain: companyLicense?.company?.subdomain,
     });
 
-    // TODO: Redirect to payment gateway or trigger purchase API
-    // window.location.href = `payment-url?plan=${selectedPlan.licenseTypeId}`;
-
     setShowModal(false);
   };
 
   if (loading) return <div className="p-6">Loading plans...</div>;
 
-  /* ================= DEBUG LOGS ================= */
   console.log("COMPANY LICENSE:", companyLicense);
   console.log("CURRENT PLAN:", companyLicense?.license?.plan);
 
@@ -163,7 +154,7 @@ export default function BillingPlansPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* ================= LICENSE STATUS BANNER ================= */}
+      {/* LICENSE STATUS BANNER */}
       {companyLicense?.license && (
         <div className={`mb-6 p-4 rounded-xl border-2 ${
           companyLicense.license.isExpired 
@@ -207,7 +198,7 @@ export default function BillingPlansPage() {
         </div>
       )}
 
-      {/* ================= USER COUNT ================= */}
+      {/* USER COUNT */}
       {userCount && (
         <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl">
           <div className="flex justify-between items-center">
@@ -251,7 +242,6 @@ export default function BillingPlansPage() {
                   : "8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff",
               }}
             >
-              {/* ACTIVE BADGE */}
               {active && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 
                     bg-green-600 text-white text-xs px-3 py-1 rounded-full shadow">
@@ -321,11 +311,60 @@ export default function BillingPlansPage() {
         })}
       </div>
 
-      {/* ================= MODAL ================= */}
+      {/* SLOT EXPANSION BANNER - NEW */}
+      {companyLicense?.license && (
+        <div 
+          className="mt-8 p-6 rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(67,233,123,0.1) 0%, rgba(56,249,215,0.1) 100%)',
+            border: '2px solid rgba(67,233,123,0.3)',
+            boxShadow: '6px 6px 12px rgba(163,177,198,0.3)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div
+                className="w-16 h-16 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                  boxShadow: '3px 3px 6px rgba(0,0,0,0.15)',
+                }}
+              >
+                <Plus className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-1" style={{ color: '#1e293b' }}>
+                  Need More Capacity?
+                </h3>
+                <p className="text-sm" style={{ color: '#64748b' }}>
+                  Add extra user or client slots to your current plan without upgrading
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (onNavigateToSlotExpansion) {
+                  onNavigateToSlotExpansion();
+                }
+              }}
+              className="px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                color: 'white',
+                boxShadow: '4px 4px 8px rgba(67, 233, 123, 0.4)',
+              }}
+            >
+              <TrendingUp className="w-5 h-5" />
+              Expand Slots
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4">
           <div className="bg-white rounded-3xl w-full max-w-xl shadow-xl overflow-hidden">
-            {/* HEADER */}
             <div className="px-8 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
               <div className="flex justify-between items-center">
                 <div>
@@ -342,7 +381,6 @@ export default function BillingPlansPage() {
               </div>
             </div>
 
-            {/* BODY */}
             <div className="p-6 space-y-4">
               <div className="relative bg-gray-100 rounded-xl p-1 flex">
                 <div
@@ -411,7 +449,6 @@ export default function BillingPlansPage() {
               </div>
             </div>
 
-            {/* FOOTER */}
             <div className="px-6 py-4 border-t flex justify-between">
               <button
                 onClick={() => setShowModal(false)}
