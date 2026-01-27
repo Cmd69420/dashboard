@@ -449,16 +449,16 @@ const Dashboard = () => {
   };
 
   const navItems = [
-    { id: "analytics", label: "Dashboard", icon: Home },
-    { id: "clients", label: "Clients", icon: FileText },
-    { id: "clientServices", label: "Client Services", icon: Package },
-    { id: "users", label: "Team Activity", icon: Users },
-    { id: "userManagement", label: "User Management", icon: Settings },
-    ...(isSuperAdmin) ? [
-      { id: "companyManagement", label: "Company Management", icon: Building2 },
-      { id: "slotExpansion", label: "Expand Capacity", icon: Plus },
-    ] : []
-  ];
+  { id: "analytics", label: "Dashboard", icon: Home },
+  { id: "clients", label: "Clients", icon: FileText },
+  { id: "clientServices", label: "Client Services", icon: Package },
+  { id: "users", label: "Team Activity", icon: Users },
+  { id: "userManagement", label: "User Management", icon: Settings },
+  { id: "slotExpansion", label: "Expand Capacity", icon: Plus },  // ← Now available for ALL admins
+  ...(isSuperAdmin) ? [
+    { id: "companyManagement", label: "Company Management", icon: Building2 },  // ← Only for Super Admins
+  ] : []
+];
 
   const sidebarWidth = sidebarCollapsed ? "w-20" : "w-72";
   const mainMargin = sidebarCollapsed ? "ml-20" : "ml-72";
