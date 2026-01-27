@@ -1,6 +1,6 @@
 // Dashboard.js - Multi-Company Version with Collapsible Sidebar
 import React, { useState, useEffect } from "react";
-import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight, ChevronLeft, ChevronRight, Menu, Plus } from "lucide-react";
 
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
@@ -16,7 +16,7 @@ import CompanyManagementPage from './CompanyManagementPage';
 import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 import PlanUsageWidget from './PlanUsageWidget';
-import SlotExpansionPage from './SlotExpansionPage';
+import SlotExpansionPage from '../SlotExpansionPage';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
