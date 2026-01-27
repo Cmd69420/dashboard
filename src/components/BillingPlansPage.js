@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, TrendingUp } from "lucide-react";
+import CheckoutPage from './CheckoutPage';
 
 const PRODUCT_ID = "69589d3ba7306459dd47fd87";
 const API_BASE = "https://backup-server-q2dc.onrender.com";
@@ -13,6 +14,8 @@ export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [renewType, setRenewType] = useState("manual");
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutData, setCheckoutData] = useState(null);
 
   const token = localStorage.getItem("token");
 
@@ -127,19 +130,67 @@ export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
   };
 
   const handleProceed = () => {
-    console.log("Proceed payload:", {
+  console.log("Proceed payload:", {
+    licenseTypeId: selectedPlan.licenseTypeId,
+    renewType,
+    isRenew: selectedPlan.isRenew,
+    price: selectedPlan.price,
+    companyId: companyLicense?.company?.id,
+    companySubdomain: companyLicense?.company?.subdomain,
+  });
+
+  // Calculate tax (18% GST)
+  const subtotal = selectedPlan.price;
+  const tax = Math.round(subtotal * 0.18);
+  const total = subtotal + tax;
+
+  // Prepare checkout data
+  setCheckoutData({
+    type: selectedPlan.isRenew ? 'renewal' : 'plan',
+    totalAmount: total,
+    subtotal: subtotal,
+    tax: tax,
+    details: {
+      name: selectedPlan.name,
+      description: `${renewType === 'auto' ? 'Auto-renewal' : 'Manual renewal'} subscription`,
       licenseTypeId: selectedPlan.licenseTypeId,
-      renewType,
+      renewType: renewType,
       isRenew: selectedPlan.isRenew,
-      price: selectedPlan.price,
       companyId: companyLicense?.company?.id,
       companySubdomain: companyLicense?.company?.subdomain,
-    });
+    }
+  });
 
-    setShowModal(false);
-  };
+  // Close modal and show checkout
+  setShowModal(false);
+  setShowCheckout(true);
+};
 
-  if (loading) return <div className="p-6">Loading plans...</div>;
+// ✅ ADD THIS RIGHT AFTER YOUR FUNCTIONS (after handleProceed) AND BEFORE THE EXISTING RETURN
+
+// Show checkout if active
+if (showCheckout) {
+  return (
+    <CheckoutPage
+      orderData={checkoutData}
+      onBack={() => {
+        setShowCheckout(false);
+        setShowModal(true); // Go back to the modal
+      }}
+      onSuccess={(data) => {
+        console.log('Payment successful:', data);
+        setShowCheckout(false);
+        setCheckoutData(null);
+        
+        // Refresh the page data
+        window.location.reload(); // Simple refresh, or call your fetch functions
+      }}
+    />
+  );
+}
+
+if (loading) return <div className="p-6">Loading plans...</div>;
+// ... rest of your existing code
 
   console.log("COMPANY LICENSE:", companyLicense);
   console.log("CURRENT PLAN:", companyLicense?.license?.plan);
