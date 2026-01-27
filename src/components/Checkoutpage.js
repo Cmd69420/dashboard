@@ -863,7 +863,7 @@ const handleProceedToCheckout = () => {
     onSuccess={(data) => {
       console.log('Payment successful:', data);
       setShowCheckout(false);
-      // Refresh plan data or redirect
+      // Refresh pla data or redirect
     }}
   />
 ) : (
