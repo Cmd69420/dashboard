@@ -17,7 +17,7 @@ import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 import PlanUsageWidget from './PlanUsageWidget';
 import MapViewerPage from './MapViewerPage';
-import SlotExpansionPage from "./SlotexpansionPage";
+import SlotExpansionPage from './Slot';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
