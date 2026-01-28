@@ -1,6 +1,6 @@
 // Dashboard.js - Multi-Company Version with Collapsible Sidebar
 import React, { useState, useEffect } from "react";
-import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight, ChevronLeft, ChevronRight, Menu, Plus } from "lucide-react";
+import { HardDrive, Package, TrendingUp, FileText, Users, LogOut, Home, RefreshCw, Settings, Sparkles, Phone, Building2, ChevronDown, Crown, ArrowRight, ChevronLeft, ChevronRight, Menu, Plus ,MapPin} from "lucide-react";
 
 // Import page components
 import AnalyticsPage from "./AnalyticsPage";
@@ -17,6 +17,7 @@ import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 import PlanUsageWidget from './PlanUsageWidget';
 import SlotExpansionPage from './SlotExpansionPage';
+import MapViewerPage from './MapViewerPage';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
 
@@ -174,7 +175,12 @@ const Dashboard = () => {
     try {
       if (currentPage === "analytics") {
         await Promise.all([fetchAnalytics(), fetchSyncStatus()]);
-      } else if (currentPage === "clients") {
+      }else if (currentPage === "mapViewer") {  // ← ADD THIS
+      // Map viewer fetches its own data
+      setLoading(false);
+      return;
+      } 
+      else if (currentPage === "clients") {
         await fetchClients(clientsPage, CLIENTS_PER_PAGE);
       } else if (currentPage === "users") {
         await fetchUsers();
@@ -450,6 +456,7 @@ const Dashboard = () => {
 
   const navItems = [
   { id: "analytics", label: "Dashboard", icon: Home },
+  { id: "mapViewer", label: "Map View", icon: MapPin },
   { id: "clients", label: "Clients", icon: FileText },
   { id: "clientServices", label: "Client Services", icon: Package },
   { id: "users", label: "Team Activity", icon: Users },
@@ -843,6 +850,12 @@ const Dashboard = () => {
             onGoToClients={() => setCurrentPage("clients")}
             onGoToUsers={() => setCurrentPage("users")}
           />
+          ) : currentPage === "mapViewer" ? (
+          <MapViewerPage
+            onViewUserDetails={handleViewUserLogs}
+            onRefresh={fetchData}
+          />
+        
         ) : currentPage === "clients" ? (
           <ClientsPage
             clients={clients}
