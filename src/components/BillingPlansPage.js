@@ -13,7 +13,7 @@ export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
 
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [renewType, setRenewType] = useState("manual");
+  const [billingCycle, setBillingCycle] = useState("monthly");
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutData, setCheckoutData] = useState(null);
 
@@ -82,10 +82,15 @@ export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
+        // ✅ This endpoint returns an array of License documents
+        // Each License has a populated 'licenseType' field
         const res = await fetch(
           `https://lisence-system.onrender.com/api/license/licenses-by-product/69589d3ba7306459dd47fd87`
         );
         const data = await res.json();
+
+        console.log("🔍 RAW API RESPONSE:", data);
+        console.log("🔍 First license structure:", data.licenses?.[0]);
 
         const transformedPlans = (data?.licenses || []).map((plan) => ({
           ...plan,
@@ -118,79 +123,105 @@ export default function BillingPlansPage({ onNavigateToSlotExpansion }) {
     const currentPlan = companyLicense?.license?.plan || "";
     const isRenew = currentPlan.toLowerCase() === plan.licenseType?.name.toLowerCase();
 
+    console.log("🎯 SELECTED PLAN:", {
+      licenseDatabaseId: plan._id,  // ⬅️ This is what we send to backend!
+      licenseTypeId: plan.licenseType._id,  // ⬅️ This is just for display
+      licenseTypeName: plan.licenseType?.name,
+      price: plan.licenseType?.price?.amount
+    });
+
+    // ✅ CRITICAL: Store the License document's _id, NOT the licenseType._id
     setSelectedPlan({
-      licenseTypeId: plan.licenseType._id,
+      licenseId: plan._id,  // ⬅️ The License document _id (what backend needs!)
+      licenseTypeId: plan.licenseType._id,  // Keep for reference
       name: plan.licenseType?.name,
       price: plan.licenseType?.price?.amount,
       isRenew,
     });
 
-    setRenewType("manual");
+    setBillingCycle("monthly");
     setShowModal(true);
   };
 
   const handleProceed = () => {
-  console.log("Proceed payload:", {
-    licenseTypeId: selectedPlan.licenseTypeId,
-    renewType,
-    isRenew: selectedPlan.isRenew,
-    price: selectedPlan.price,
-    companyId: companyLicense?.company?.id,
-    companySubdomain: companyLicense?.company?.subdomain,
-  });
+    console.log("✅ PROCEED WITH PAYMENT:", {
+      licenseId: selectedPlan.licenseId,  // ⬅️ License document _id
+      billingCycle: billingCycle,
+    });
 
-  // Calculate tax (18% GST)
-  const subtotal = selectedPlan.price;
-  const tax = Math.round(subtotal * 0.18);
-  const total = subtotal + tax;
+    // Calculate amounts based on billing cycle
+    const basePrice = selectedPlan.price;
+    let subtotal = basePrice;
+    let discount = 0;
 
-  // Prepare checkout data
-  setCheckoutData({
-    type: selectedPlan.isRenew ? 'renewal' : 'plan',
-    totalAmount: total,
-    subtotal: subtotal,
-    tax: tax,
-    details: {
-      name: selectedPlan.name,
-      description: `${renewType === 'auto' ? 'Auto-renewal' : 'Manual renewal'} subscription`,
-      licenseTypeId: selectedPlan.licenseTypeId,
-      renewType: renewType,
-      isRenew: selectedPlan.isRenew,
-      companyId: companyLicense?.company?.id,
-      companySubdomain: companyLicense?.company?.subdomain,
+    switch (billingCycle) {
+      case 'monthly':
+        subtotal = basePrice;
+        discount = 0;
+        break;
+      case 'quarterly':
+        subtotal = basePrice * 3;
+        discount = subtotal * 0.05; // 5% off
+        break;
+      case 'half-yearly':
+        subtotal = basePrice * 6;
+        discount = subtotal * 0.10; // 10% off
+        break;
+      case 'yearly':
+        subtotal = basePrice * 12;
+        discount = subtotal * 0.20; // 20% off
+        break;
     }
-  });
 
-  // Close modal and show checkout
-  setShowModal(false);
-  setShowCheckout(true);
-};
+    const afterDiscount = subtotal - discount;
+    const gst = Math.round(afterDiscount * 0.18);
+    const total = afterDiscount + gst;
 
-// ✅ ADD THIS RIGHT AFTER YOUR FUNCTIONS (after handleProceed) AND BEFORE THE EXISTING RETURN
+    // ✅ CORRECT FORMAT: This is what CheckoutPage expects
+    setCheckoutData({
+      // Required fields for backend (sent to createOrder)
+      licenseId: selectedPlan.licenseId,  // ⬅️ License document _id (NOT licenseTypeId!)
+      billingCycle: billingCycle,          // ⬅️ 'monthly', 'quarterly', 'half-yearly', 'yearly'
+      
+      // Display fields (for UI only)
+      name: selectedPlan.name,
+      type: selectedPlan.isRenew ? 'renewal' : 'upgrade',
+      description: `${selectedPlan.name} - ${billingCycle} billing`,
+      displayAmount: total,
+      
+      // Breakdown for display
+      breakdown: {
+        subtotal: afterDiscount,
+        discount: discount,
+        credit: 0,
+        gst: gst,
+      }
+    });
 
-// Show checkout if active
-if (showCheckout) {
-  return (
-    <CheckoutPage
-      orderData={checkoutData}
-      onBack={() => {
-        setShowCheckout(false);
-        setShowModal(true); // Go back to the modal
-      }}
-      onSuccess={(data) => {
-        console.log('Payment successful:', data);
-        setShowCheckout(false);
-        setCheckoutData(null);
-        
-        // Refresh the page data
-        window.location.reload(); // Simple refresh, or call your fetch functions
-      }}
-    />
-  );
-}
+    setShowModal(false);
+    setShowCheckout(true);
+  };
 
-if (loading) return <div className="p-6">Loading plans...</div>;
-// ... rest of your existing code
+  // Show checkout if active
+  if (showCheckout) {
+    return (
+      <CheckoutPage
+        orderData={checkoutData}
+        onBack={() => {
+          setShowCheckout(false);
+          setShowModal(true);
+        }}
+        onSuccess={(data) => {
+          console.log('✅ Payment successful:', data);
+          setShowCheckout(false);
+          setCheckoutData(null);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  if (loading) return <div className="p-6">Loading plans...</div>;
 
   console.log("COMPANY LICENSE:", companyLicense);
   console.log("CURRENT PLAN:", companyLicense?.license?.plan);
@@ -199,6 +230,8 @@ if (loading) return <div className="p-6">Loading plans...</div>;
     console.log(
       "PLAN", i,
       "NAME:", p.licenseType?.name,
+      "LICENSE _ID:", p._id,  // ⬅️ This is what we send to backend
+      "LICENSETYPE _ID:", p.licenseType?._id,  // ⬅️ This is just for matching
       "MATCH:", isCurrentPlan(p)
     );
   });
@@ -230,66 +263,47 @@ if (loading) return <div className="p-6">Loading plans...</div>;
               {companyLicense.license.expiresAt ? (
                 <>
                   <p className="text-sm text-gray-600">
-                    {companyLicense.license.isExpired ? 'Expired on' : 'Expires on'}
+                    {companyLicense.license.isExpired ? 'Expired' : 'Expires'}: 
                   </p>
-                  <p className="font-semibold">
+                  <p className="text-base font-semibold">
                     {new Date(companyLicense.license.expiresAt).toLocaleDateString()}
                   </p>
-                  {!companyLicense.license.isExpired && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      ({companyLicense.license.daysUntilExpiry} days remaining)
-                    </p>
-                  )}
                 </>
               ) : (
-                <p className="text-sm text-gray-600">No expiry</p>
+                <p className="text-sm text-gray-500 italic">No expiry</p>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* USER COUNT */}
+      {/* USER COUNT INFO */}
       {userCount && (
         <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-gray-600">Current Users</p>
-              <p className="text-2xl font-bold">{userCount.currentUsers}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Max Allowed</p>
-              <p className="text-2xl font-bold">{userCount.maxAllowedUsers || '∞'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Available Slots</p>
-              <p className="text-2xl font-bold text-green-600">
-                {userCount.availableSlots ?? '∞'}
-              </p>
-            </div>
-          </div>
-          {userCount.isAtCapacity && (
-            <p className="text-sm text-red-600 mt-2">
-              ⚠️ You've reached your user limit. Upgrade to add more users.
-            </p>
-          )}
+          <p className="text-sm text-gray-600">
+            <strong>Current Usage:</strong> {userCount.currentUsers || 0} users out of {userCount.maxUsers || 'unlimited'}
+          </p>
         </div>
       )}
 
-      <h2 className="text-2xl font-semibold mb-6">Pricing Plans</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* PLANS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans.map((plan) => {
-          const type = plan.licenseType || {};
+          const type = plan.licenseType;
+          if (!type) return null;
+
           const active = isCurrentPlan(plan);
 
           return (
             <div
               key={plan._id}
-              className="rounded-2xl p-5 bg-[#ecf0f3] relative"
+              className={`relative p-6 rounded-2xl ${
+                active ? "border-4 border-green-500" : ""
+              }`}
               style={{
+                background: "#ecf0f3",
                 boxShadow: active
-                  ? "inset 6px 6px 12px #c5c8cf, inset -6px -6px 12px #ffffff"
+                  ? "inset 3px 3px 6px #c5c8cf, inset -3px -3px 6px #ffffff"
                   : "8px 8px 16px #c5c8cf, -8px -8px 16px #ffffff",
               }}
             >
@@ -311,7 +325,7 @@ if (loading) return <div className="p-6">Loading plans...</div>;
               </div>
 
               <p className="text-sm text-gray-500 mb-3">
-                {type.price?.billingPeriod || "monthly"}
+                per user / {type.price?.billingPeriod || "monthly"}
               </p>
 
               {Array.isArray(type.features) && (
@@ -362,7 +376,7 @@ if (loading) return <div className="p-6">Loading plans...</div>;
         })}
       </div>
 
-      {/* SLOT EXPANSION BANNER - NEW */}
+      {/* SLOT EXPANSION BANNER */}
       {companyLicense?.license && (
         <div 
           className="mt-8 p-6 rounded-2xl"
@@ -433,54 +447,78 @@ if (loading) return <div className="p-6">Loading plans...</div>;
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="relative bg-gray-100 rounded-xl p-1 flex">
-                <div
-                  className={`absolute top-1 left-1 h-[42px] w-1/2 rounded-lg bg-indigo-600 transition-all ${
-                    renewType === "auto" ? "translate-x-full" : ""
-                  }`}
-                />
+              {/* BILLING CYCLE SELECTOR */}
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Choose Billing Cycle
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['monthly', 'quarterly', 'half-yearly', 'yearly'].map((cycle) => {
+                    const discounts = {
+                      monthly: 0,
+                      quarterly: 5,
+                      'half-yearly': 10,
+                      yearly: 20
+                    };
+                    const discount = discounts[cycle];
 
-                <button
-                  className={`relative z-10 flex-1 h-10 font-semibold ${
-                    renewType === "manual"
-                      ? "text-white"
-                      : "text-gray-700"
-                  }`}
-                  onClick={() => setRenewType("manual")}
-                >
-                  Renew Manually
-                </button>
-
-                <button
-                  className={`relative z-10 flex-1 h-10 font-semibold ${
-                    renewType === "auto"
-                      ? "text-white"
-                      : "text-gray-700"
-                  }`}
-                  onClick={() => setRenewType("auto")}
-                >
-                  Auto Renew
-                </button>
+                    return (
+                      <button
+                        key={cycle}
+                        onClick={() => setBillingCycle(cycle)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          billingCycle === cycle
+                            ? 'border-indigo-600 bg-indigo-50'
+                            : 'border-gray-200 bg-white hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="text-sm font-semibold capitalize">
+                          {cycle === 'half-yearly' ? 'Half-Yearly' : cycle}
+                        </div>
+                        {discount > 0 && (
+                          <div className="text-xs text-green-600 font-semibold">
+                            Save {discount}%
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-gray-50 border rounded-xl p-4 text-sm text-gray-700">
-                {renewType === "manual" ? (
+                {billingCycle === 'monthly' ? (
                   <>
-                    You will manually renew this subscription when it expires.
+                    Pay monthly with no long-term commitment.
                     <div className="text-gray-500 mt-1">
-                      No automatic charges.
+                      Cancel anytime.
+                    </div>
+                  </>
+                ) : billingCycle === 'quarterly' ? (
+                  <>
+                    Pay every 3 months and save 5%.
+                    <div className="text-gray-500 mt-1">
+                      Best for short-term projects.
+                    </div>
+                  </>
+                ) : billingCycle === 'half-yearly' ? (
+                  <>
+                    Pay every 6 months and save 10%.
+                    <div className="text-gray-500 mt-1">
+                      Great value for medium-term needs.
                     </div>
                   </>
                 ) : (
                   <>
-                    Subscription will renew automatically before expiry.
+                    Pay annually and save 20%.
                     <div className="text-gray-500 mt-1">
-                      You can disable auto-renew anytime.
+                      Maximum savings for long-term use.
                     </div>
                   </>
                 )}
               </div>
 
+              {/* ORDER SUMMARY */}
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
                 <p className="text-sm font-semibold mb-2">Order Summary</p>
                 <div className="flex justify-between text-sm mb-1">
@@ -488,15 +526,22 @@ if (loading) return <div className="p-6">Loading plans...</div>;
                   <span className="font-semibold">{selectedPlan?.name}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span>Price:</span>
-                  <span className="font-semibold">₹{selectedPlan?.price}</span>
+                  <span>Base Price:</span>
+                  <span className="font-semibold">₹{selectedPlan?.price}/user</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Type:</span>
-                  <span className="font-semibold">
-                    {selectedPlan?.isRenew ? 'Renewal' : 'Upgrade'}
-                  </span>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Billing Cycle:</span>
+                  <span className="font-semibold capitalize">{billingCycle}</span>
                 </div>
+                {billingCycle !== 'monthly' && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount:</span>
+                    <span className="font-semibold">
+                      {billingCycle === 'quarterly' ? '5%' : 
+                       billingCycle === 'half-yearly' ? '10%' : '20%'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

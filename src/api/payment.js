@@ -1,76 +1,116 @@
+// frontend/api/payment.js
 import axios from "axios";
 
-const API_BASE = "https://backup-server-q2dc.onrender.com";
-const LICENSE_API_BASE = "https://lisence-system.onrender.com";
+const LICENSE_API = "https://lisence-system.onrender.com";
 
-// Axios instance with auth interceptor
-const API = axios.create({
-  baseURL: LICENSE_API_BASE,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Payment API functions
-export const createOrder = async ({
-  userId,
-  licenseId,
-  billingCycle,
-  amount,
-  orderType, // 'plan', 'slot-expansion', 'renewal'
-  orderDetails,
+/**
+ * Step 1: Purchase License - Creates the license purchase and pending transaction
+ * This must be called BEFORE creating the Razorpay order
+ */
+export const purchaseLicense = async ({ 
+  name,           // User's full name
+  email,          // User's email
+  orgName = "",   // Organization name (optional)
+  licenseId,      // License type ID
+  billingCycle,   // monthly/quarterly/yearly
+  source = "Geotrack",  // Product name
+  amount,         // Total amount in paise
+  currency = "INR"
 }) => {
-  const res = await API.post("/api/payment/create-order", {
-    userId,
-    licenseId,
-    billingCycle,
-    amount,
-    orderType,
-    orderDetails,
-  });
-  return res.data;
+  try {
+    const payload = {
+      name,
+      email,
+      orgName,
+      licenseId,
+      billingCycle,
+      source,
+      amount,
+      currency
+    };
+    
+    console.log("📤 Purchasing license with LMS payload:");
+    console.log("   name:", name);
+    console.log("   email:", email);
+    console.log("   orgName:", orgName);
+    console.log("   licenseId:", licenseId);
+    console.log("   billingCycle:", billingCycle);
+    console.log("   source:", source);
+    console.log("   amount:", amount);
+    console.log("   currency:", currency);
+    console.log("   Full payload:", JSON.stringify(payload, null, 2));
+    
+    const response = await axios.post(
+      `${LICENSE_API}/api/lms/purchase-license`,
+      payload
+    );
+
+    console.log("✅ License purchased:", response.data);
+    return response.data.data || response.data;
+  } catch (error) {
+    console.error("❌ Error purchasing license:");
+    console.error("   Status:", error.response?.status);
+    console.error("   Data:", error.response?.data);
+    console.error("   Full error:", error);
+    throw error;
+  }
 };
 
-// Verify payment after Razorpay returns handler response
-export const verifyPayment = async (details) => {
-  const res = await API.post("/api/payment/verify-payment", details);
-  return res.data;
+/**
+ * Step 2: Create Razorpay order
+ * This uses the pending transaction created in step 1 (purchaseLicense)
+ */
+export const createOrder = async ({ userId, licenseId, billingCycle, amount }) => {
+  try {
+    console.log("📤 Creating Razorpay order:", { userId, licenseId, billingCycle, amount });
+    
+    const response = await axios.post(
+      `${LICENSE_API}/api/payment/create-order`,
+      {
+        userId,
+        licenseId,
+        billingCycle,
+        amount,
+      }
+    );
+
+    console.log("✅ Razorpay order created:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error creating order:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
-export const getTransactionDetails = async (transactionId) => {
-  const res = await API.get(`/api/payment/transaction/${transactionId}`);
-  return res.data;
+/**
+ * Step 3: Verify payment after user completes Razorpay checkout
+ */
+export const verifyPayment = async (paymentData) => {
+  try {
+    console.log("📤 Verifying payment:", paymentData);
+    
+    const response = await axios.post(
+      `${LICENSE_API}/api/payment/verify`,
+      paymentData
+    );
+
+    console.log("✅ Payment verified:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error verifying payment:", error);
+    throw error;
+  }
 };
 
-export const downloadInvoice = (transactionId) => {
-  if (!transactionId) return;
-  window.open(
-    `${LICENSE_API_BASE}/api/payment/invoice/${transactionId}`,
-    "_blank"
-  );
-};
-
-// Initialize Razorpay payment
+/**
+ * Initialize Razorpay script
+ */
 export const initializeRazorpay = () => {
   return new Promise((resolve) => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => {
-      resolve(true);
-    };
-    script.onerror = () => {
-      resolve(false);
-    };
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 };
-
-export default API;

@@ -8,15 +8,12 @@ import {
   X,
   AlertCircle,
   Loader,
-  Building2,
   User,
-  Mail,
-  Phone,
 } from 'lucide-react';
-import { createOrder, verifyPayment, initializeRazorpay } from '../api/payment';
+import { purchaseLicense, createOrder, verifyPayment, initializeRazorpay } from '../api/payment';
+import { getLmsUserId } from '../api/license';
 
-const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
-const RAZORPAY_KEY_ID = "rzp_test_RnRpO2zJanwL9L";
+const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID || "rzp_test_RnRpO2zJanwL9L";
 
 const NeumorphicCard = ({ children, className = "" }) => (
   <div
@@ -32,11 +29,11 @@ const NeumorphicCard = ({ children, className = "" }) => (
 );
 
 const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [transactionId, setTransactionId] = useState(null);
+  const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(true);
   
   // Payment form state
   const [billingInfo, setBillingInfo] = useState({
@@ -56,6 +53,13 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
   const userName = localStorage.getItem("userName");
   const companyName = localStorage.getItem("companyName");
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setMounted(false);
+    };
+  }, []);
+
   useEffect(() => {
     // Pre-fill billing info from localStorage
     setBillingInfo(prev => ({
@@ -63,11 +67,17 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
       email: userEmail || "",
       name: userName || companyName || "",
     }));
-  }, []);
+  }, [userEmail, userName, companyName]);
 
   // Load Razorpay script on mount
   useEffect(() => {
-    initializeRazorpay();
+    const loadRazorpay = async () => {
+      const loaded = await initializeRazorpay();
+      if (!loaded && mounted) {
+        setError("Failed to load payment gateway. Please refresh the page.");
+      }
+    };
+    loadRazorpay();
   }, []);
 
   const validateForm = () => {
@@ -84,103 +94,361 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
       return false;
     }
 
-    // Validate phone
-    if (!/^\d{10}$/.test(billingInfo.phone.replace(/\D/g, ''))) {
-      setError("Please enter a valid 10-digit phone number");
+    // Validate Indian phone number
+    const cleanPhone = billingInfo.phone.replace(/\D/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setError("Please enter a valid 10-digit Indian mobile number");
+      return false;
+    }
+
+    // Validate GST if provided
+    if (billingInfo.gstNumber && billingInfo.gstNumber.trim()) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(billingInfo.gstNumber.trim())) {
+        setError("Please enter a valid GST number or leave it empty");
+        return false;
+      }
+    }
+
+    // Validate pincode if provided
+    if (billingInfo.pincode && !/^\d{6}$/.test(billingInfo.pincode)) {
+      setError("Please enter a valid 6-digit pincode");
       return false;
     }
 
     return true;
   };
 
-  const handlePayment = async () => {
-    if (!validateForm()) {
-      return;
+  // FIXED handlePayment function for Checkoutpage.js
+// Replace your existing handlePayment function (lines 121-252) with this:
+
+const handlePayment = async () => {
+  if (!validateForm()) {
+    return;
+  }
+
+  setProcessingPayment(true);
+  setError("");
+
+  try {
+    console.log("=== PAYMENT DEBUG START ===");
+    console.log("1. userEmail:", userEmail);
+    console.log("2. orderData:", orderData);
+    console.log("=== PAYMENT DEBUG END ===");
+
+    // ✅ VALIDATION: Check required fields
+    if (!userEmail) {
+      throw new Error("User email is missing. Please login again.");
     }
 
-    setProcessingPayment(true);
-    setError("");
+    if (!orderData?.licenseId) {
+      throw new Error("License ID is missing. Please select a plan again.");
+    }
 
+    if (!orderData?.billingCycle) {
+      throw new Error("Billing cycle is missing. Please select a plan again.");
+    }
+
+    // ✅ STEP 1: Check if user already has an lms_user_id (for upgrades)
+    console.log("📤 Checking for existing lms_user_id for email:", userEmail);
+    let existingLmsUserId = null;
     try {
-      // Step 1: Create order on your backend
-      const orderResponse = await createOrder({
-        userId: userId,
-        licenseId: orderData.details.licenseTypeId,
-        billingCycle: orderData.details.renewType === 'auto' ? 'monthly' : 'manual',
-        amount: orderData.totalAmount,
-        orderType: orderData.type, // 'plan', 'slot-expansion', 'renewal'
-        orderDetails: {
-          ...orderData.details,
-          billingInfo,
-        },
-      });
+      existingLmsUserId = await getLmsUserId(userEmail);
+      console.log("✅ Found existing lms_user_id:", existingLmsUserId);
+    } catch (error) {
+      console.log("ℹ️ No existing lms_user_id found (new purchase)");
+    }
 
-      console.log("✅ Order created:", orderResponse);
+    // ✅ STEP 2: Purchase license (creates pending transaction in LMS)
+    const totalAmount = Math.round(orderData.displayAmount * 100); // Convert to paise
+    
+    console.log("📤 Purchasing license with payload:", {
+      name: billingInfo.name,
+      email: billingInfo.email,
+      orgName: billingInfo.address || "",
+      licenseId: orderData.licenseId,
+      billingCycle: orderData.billingCycle,
+      source: "Geotrack",
+      amount: totalAmount,
+      currency: "INR",
+    });
 
-      // Step 2: Initialize Razorpay checkout
-      const options = {
-        key: RAZORPAY_KEY_ID,
-        amount: orderResponse.amount, // Amount in paise
-        currency: orderResponse.currency || "INR",
-        name: "GeoTrack SaaS",
-        description: orderData.details.description || `Purchase ${orderData.details.name}`,
-        order_id: orderResponse.orderId,
-        prefill: {
-          name: billingInfo.name,
-          email: billingInfo.email,
-          contact: billingInfo.phone,
-        },
-        theme: {
-          color: "#667eea",
-        },
-        handler: async function (response) {
-          console.log("✅ Razorpay response:", response);
-          
-          try {
-            // Step 3: Verify payment on backend
-            const verificationResponse = await verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              orderDetails: orderData.details,
-            });
+    const purchaseResponse = await purchaseLicense({
+      name: billingInfo.name,              // User's full name
+      email: billingInfo.email,            // User's email
+      orgName: billingInfo.address || "",  // Organization/address
+      licenseId: orderData.licenseId,      // License plan ID
+      billingCycle: orderData.billingCycle, // monthly/quarterly/yearly
+      source: "Geotrack",                  // Product name
+      amount: totalAmount,                 // Total amount in paise
+      currency: "INR"                      // Currency
+    });
 
-            console.log("✅ Payment verified:", verificationResponse);
+    console.log("✅ License purchase created:", purchaseResponse);
+    
+    // Extract userId from purchase response (the LMS creates a user and returns the ID)
+    const lmsUserIdFromPurchase = purchaseResponse.userId || purchaseResponse._id;
+    console.log("✅ LMS User ID from purchase response:", lmsUserIdFromPurchase);
 
-            setTransactionId(verificationResponse.transactionId);
+    // ✅ STEP 3: Create Razorpay order using userId from purchase response
+    console.log("📤 Creating Razorpay order with payload:", {
+      userId: lmsUserIdFromPurchase,
+      licenseId: orderData.licenseId,
+      billingCycle: orderData.billingCycle,
+      amount: totalAmount,
+    });
+
+    const orderResponse = await createOrder({
+      userId: lmsUserIdFromPurchase,  // ← Use userId from purchase response!
+      licenseId: orderData.licenseId,
+      billingCycle: orderData.billingCycle,
+      amount: totalAmount, // Convert to paise
+    });
+
+    console.log("✅ Razorpay order created:", orderResponse);
+
+    // ✅ Validate response
+    if (!orderResponse?.orderId) {
+      throw new Error("Invalid response from payment gateway");
+    }
+
+    // ✅ STEP 4: Initialize Razorpay checkout
+    const options = {
+      key: orderResponse.key || RAZORPAY_KEY_ID,
+      amount: orderResponse.amountInPaise,
+      currency: orderResponse.currency || "INR",
+      name: "GeoTrack SaaS",
+      description: orderData.description || `Purchase ${orderData.name}`,
+      order_id: orderResponse.orderId,
+      prefill: {
+        name: billingInfo.name,
+        email: billingInfo.email,
+        contact: billingInfo.phone,
+      },
+      notes: {
+        address: billingInfo.address,
+        city: billingInfo.city,
+        state: billingInfo.state,
+        pincode: billingInfo.pincode,
+        gstNumber: billingInfo.gstNumber,
+      },
+      theme: {
+        color: "#667eea",
+      },
+      handler: async function (response) {
+        console.log("✅ Razorpay payment response:", response);
+        
+        if (!mounted) {
+          console.log("⚠️ Component unmounted, skipping state update");
+          return;
+        }
+        
+        try {
+          // ✅ STEP 5: Verify payment
+          const verificationResponse = await verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
+          console.log("✅ Payment verified:", verificationResponse);
+
+          if (mounted) {
+            setTransactionId(verificationResponse.transactionId || response.razorpay_payment_id);
             setPaymentSuccess(true);
             setProcessingPayment(false);
 
-            // Call success callback after short delay
             setTimeout(() => {
-              if (onSuccess) {
+              if (onSuccess && mounted) {
                 onSuccess(verificationResponse);
               }
+              
+              // Refresh the page after successful payment
+              setTimeout(() => {
+                console.log("🔄 Refreshing page to update license status...");
+                window.location.reload();
+              }, 2000); // Refresh after showing success message
             }, 2000);
-          } catch (err) {
-            console.error("❌ Payment verification failed:", err);
-            setError("Payment verification failed. Please contact support.");
+          }
+        } catch (err) {
+          console.error("❌ Payment verification failed:", err);
+          
+          if (mounted) {
+            const errorMessage = err.response?.data?.message 
+              || err.response?.data?.error 
+              || err.message 
+              || "Payment verification failed. Please contact support.";
+            setError(errorMessage);
             setProcessingPayment(false);
           }
-        },
-        modal: {
-          ondismiss: function () {
-            console.log("❌ Payment cancelled by user");
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          console.log("❌ Payment cancelled by user");
+          if (mounted) {
             setProcessingPayment(false);
             setError("Payment was cancelled");
           }
         }
-      };
+      }
+    };
 
-      const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.open();
+    const razorpayInstance = new window.Razorpay(options);
+    razorpayInstance.open();
 
-    } catch (err) {
-      console.error("❌ Payment error:", err);
-      setError(err.message || "Payment processing failed. Please try again.");
+  } catch (err) {
+    console.error("❌ Payment error:", err);
+    console.error("❌ Error response:", err.response?.data);
+    
+    if (mounted) {
+      let errorMessage = "Payment processing failed. Please try again.";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setProcessingPayment(false);
     }
-  };
+  }
+};
+
+
+// ============================================
+// ALTERNATIVE VERSION: If above doesn't work
+// ============================================
+// This version adds the 'amount' field (like the working TypeScript version)
+
+const handlePaymentWithAmount = async () => {
+  if (!validateForm()) {
+    return;
+  }
+
+  setProcessingPayment(true);
+  setError("");
+
+  try {
+    // Validate userId
+    if (!userId || userId === "null" || userId === "undefined") {
+      throw new Error("User session expired. Please login again.");
+    }
+
+    // Validate orderData
+    if (!orderData?.licenseId) {
+      throw new Error("License ID is missing. Please select a plan again.");
+    }
+
+    if (!orderData?.billingCycle) {
+      throw new Error("Billing cycle is missing. Please select a plan again.");
+    }
+
+    if (!orderData?.displayAmount) {
+      throw new Error("Amount is missing. Please select a plan again.");
+    }
+
+    // 📦 Prepare the payload WITH amount field
+    const payload = {
+      userId: userId,
+      licenseId: orderData.licenseId,
+      billingCycle: orderData.billingCycle,
+      amount: Math.round(orderData.displayAmount * 100), // Convert to paise
+    };
+
+    console.log("📤 Sending payload with amount:", JSON.stringify(payload, null, 2));
+
+    const orderResponse = await createOrder(payload);
+
+    console.log("✅ Order created:", orderResponse);
+
+    // Validate response
+    if (!orderResponse?.orderId) {
+      throw new Error("Invalid response from payment gateway");
+    }
+
+    // Rest of the code remains the same...
+    const options = {
+      key: orderResponse.key || RAZORPAY_KEY_ID,
+      amount: orderResponse.amountInPaise,
+      currency: orderResponse.currency || "INR",
+      name: "GeoTrack SaaS",
+      description: orderData.description || `Purchase ${orderData.name}`,
+      order_id: orderResponse.orderId,
+      prefill: {
+        name: billingInfo.name,
+        email: billingInfo.email,
+        contact: billingInfo.phone,
+      },
+      notes: {
+        address: billingInfo.address,
+        city: billingInfo.city,
+        state: billingInfo.state,
+        pincode: billingInfo.pincode,
+        gstNumber: billingInfo.gstNumber,
+      },
+      theme: {
+        color: "#667eea",
+      },
+      handler: async function (response) {
+        if (!mounted) return;
+        
+        try {
+          const verificationResponse = await verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
+          if (mounted) {
+            setTransactionId(verificationResponse.transactionId || response.razorpay_payment_id);
+            setPaymentSuccess(true);
+            setProcessingPayment(false);
+
+            setTimeout(() => {
+              if (onSuccess && mounted) {
+                onSuccess(verificationResponse);
+              }
+            }, 2000);
+          }
+        } catch (err) {
+          if (mounted) {
+            setError(err.response?.data?.message || "Payment verification failed");
+            setProcessingPayment(false);
+          }
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          if (mounted) {
+            setProcessingPayment(false);
+            setError("Payment was cancelled");
+          }
+        }
+      }
+    };
+
+    const razorpayInstance = new window.Razorpay(options);
+    razorpayInstance.open();
+
+  } catch (err) {
+    console.error("❌ Payment error:", err);
+    
+    if (mounted) {
+      let errorMessage = "Payment processing failed. Please try again.";
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      setProcessingPayment(false);
+    }
+  }
+};
 
   // Payment Success Screen
   if (paymentSuccess) {
@@ -207,11 +475,11 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="text-left">
                   <p className="font-semibold mb-1" style={{ color: '#94a3b8' }}>Order Type</p>
-                  <p className="font-bold" style={{ color: '#1e293b' }}>{orderData.details.name}</p>
+                  <p className="font-bold" style={{ color: '#1e293b' }}>{orderData.name}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold mb-1" style={{ color: '#94a3b8' }}>Amount Paid</p>
-                  <p className="font-bold text-2xl" style={{ color: '#43e97b' }}>₹{orderData.totalAmount.toLocaleString()}</p>
+                  <p className="font-bold text-2xl" style={{ color: '#43e97b' }}>₹{orderData.displayAmount?.toLocaleString()}</p>
                 </div>
               </div>
               {transactionId && (
@@ -338,7 +606,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     required
                     value={billingInfo.name}
                     onChange={(e) => setBillingInfo({ ...billingInfo, name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -358,7 +626,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     required
                     value={billingInfo.email}
                     onChange={(e) => setBillingInfo({ ...billingInfo, email: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -378,7 +646,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     required
                     value={billingInfo.phone}
                     onChange={(e) => setBillingInfo({ ...billingInfo, phone: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -397,7 +665,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     type="text"
                     value={billingInfo.address}
                     onChange={(e) => setBillingInfo({ ...billingInfo, address: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -416,7 +684,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     type="text"
                     value={billingInfo.city}
                     onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -435,7 +703,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     type="text"
                     value={billingInfo.state}
                     onChange={(e) => setBillingInfo({ ...billingInfo, state: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -454,7 +722,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                     type="text"
                     value={billingInfo.pincode}
                     onChange={(e) => setBillingInfo({ ...billingInfo, pincode: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -472,8 +740,8 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                   <input
                     type="text"
                     value={billingInfo.gstNumber}
-                    onChange={(e) => setBillingInfo({ ...billingInfo, gstNumber: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl"
+                    onChange={(e) => setBillingInfo({ ...billingInfo, gstNumber: e.target.value.toUpperCase() })}
+                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
                     style={{
                       background: '#e6eaf0',
                       border: 'none',
@@ -540,54 +808,70 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                 <div className="space-y-3 mb-6">
                   <div className="p-4 rounded-xl" style={{ background: 'rgba(102, 126, 234, 0.1)' }}>
                     <p className="text-sm font-semibold mb-1" style={{ color: '#667eea' }}>
-                      {orderData.type === 'plan' ? 'Plan' : orderData.type === 'slot-expansion' ? 'Slot Expansion' : 'Service'}
+                      {orderData.type || 'Plan'}
                     </p>
                     <p className="text-lg font-bold" style={{ color: '#1e293b' }}>
-                      {orderData.details.name}
+                      {orderData.name}
                     </p>
-                    {orderData.details.description && (
+                    {orderData.description && (
                       <p className="text-xs mt-1" style={{ color: '#64748b' }}>
-                        {orderData.details.description}
+                        {orderData.description}
                       </p>
                     )}
                   </div>
 
-                  {orderData.details.items && orderData.details.items.length > 0 && (
-                    <div className="space-y-2">
-                      {orderData.details.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.2)' }}>
-                          <span className="text-sm" style={{ color: '#64748b' }}>
-                            {item.name} × {item.quantity}
-                          </span>
-                          <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                            ₹{(item.price * item.quantity).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
+                  {orderData.billingCycle && (
+                    <div className="p-3 rounded-xl" style={{ background: 'rgba(67, 233, 123, 0.1)' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#64748b' }}>Billing Cycle</p>
+                      <p className="text-sm font-bold capitalize" style={{ color: '#1e293b' }}>
+                        {orderData.billingCycle}
+                      </p>
                     </div>
                   )}
 
                   <div className="pt-4" style={{ borderTop: '2px solid rgba(148, 163, 184, 0.2)' }}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm" style={{ color: '#64748b' }}>Subtotal</span>
-                      <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                        ₹{orderData.subtotal?.toLocaleString() || orderData.totalAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    {orderData.tax && (
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm" style={{ color: '#64748b' }}>Tax (18%)</span>
-                        <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
-                          ₹{orderData.tax.toLocaleString()}
-                        </span>
-                      </div>
+                    {orderData.breakdown && (
+                      <>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm" style={{ color: '#64748b' }}>Subtotal</span>
+                          <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                            ₹{orderData.breakdown.subtotal?.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        {orderData.breakdown.discount > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm" style={{ color: '#43e97b' }}>Discount</span>
+                            <span className="text-sm font-semibold" style={{ color: '#43e97b' }}>
+                              - ₹{orderData.breakdown.discount?.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+
+                        {orderData.breakdown.credit > 0 && (
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm" style={{ color: '#43e97b' }}>Upgrade Credit</span>
+                            <span className="text-sm font-semibold" style={{ color: '#43e97b' }}>
+                              - ₹{orderData.breakdown.credit?.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {orderData.breakdown.gst && (
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm" style={{ color: '#64748b' }}>GST (18%)</span>
+                            <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                              ₹{orderData.breakdown.gst?.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     <div className="flex justify-between items-center pt-3 mt-3" style={{ borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
                       <span className="text-lg font-bold" style={{ color: '#1e293b' }}>Total</span>
                       <span className="text-2xl font-bold" style={{ color: '#43e97b' }}>
-                        ₹{orderData.totalAmount.toLocaleString()}
+                        ₹{orderData.displayAmount?.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -595,7 +879,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
 
                 <button
                   onClick={handlePayment}
-                  disabled={loading || processingPayment}
+                  disabled={processingPayment}
                   className="w-full px-6 py-4 rounded-xl font-semibold text-base transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                   style={{
                     background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
@@ -604,7 +888,7 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
                   }}
                 >
                   <Shield className="w-5 h-5" />
-                  Pay ₹{orderData.totalAmount.toLocaleString()}
+                  Pay ₹{orderData.displayAmount?.toLocaleString()}
                 </button>
 
                 <p className="text-xs text-center mt-4" style={{ color: '#94a3b8' }}>
@@ -620,4 +904,3 @@ const CheckoutPage = ({ orderData, onBack, onSuccess }) => {
 };
 
 export default CheckoutPage;
-//commit
