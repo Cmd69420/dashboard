@@ -10,6 +10,8 @@ import {
   CheckCircle,
   Activity,
   User,
+  Download,
+  FileText,
 } from "lucide-react";
 
 const NeumorphicCard = ({ children, className = "" }) => (
@@ -36,6 +38,62 @@ const UserMeetingsPage = ({
   const gotoPage = (p) => {
     if (p < 1 || p > (pagination.totalPages || 1)) return;
     onPageChange(p);
+  };
+
+  // ✅ NEW: Handle attachment download
+  const handleAttachmentClick = (attachment, meetingId, index) => {
+    try {
+      // Check if attachment is an object with fileData
+      if (typeof attachment === 'object' && attachment.fileData) {
+        // Decode base64
+        const byteCharacters = atob(attachment.fileData);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        
+        // Create blob
+        const blob = new Blob([byteArray], { type: attachment.fileType || 'application/octet-stream' });
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = attachment.fileName || `attachment_${index + 1}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('✅ Downloaded:', attachment.fileName);
+      } 
+      // Check if it's a legacy URL string
+      else if (typeof attachment === 'string') {
+        window.open(attachment, '_blank');
+      }
+    } catch (error) {
+      console.error('❌ Error downloading attachment:', error);
+      alert('Failed to download attachment');
+    }
+  };
+
+  // ✅ NEW: Get file icon based on type
+  const getFileIcon = (fileType) => {
+    if (!fileType) return <FileText className="w-4 h-4" />;
+    
+    if (fileType.includes('image')) return <FileText className="w-4 h-4" />;
+    if (fileType.includes('pdf')) return <FileText className="w-4 h-4" />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText className="w-4 h-4" />;
+    if (fileType.includes('spreadsheet') || fileType.includes('excel')) return <FileText className="w-4 h-4" />;
+    
+    return <Paperclip className="w-4 h-4" />;
+  };
+
+  // ✅ NEW: Format file size
+  const formatFileSize = (sizeMB) => {
+    if (sizeMB < 0.01) return `${(sizeMB * 1024).toFixed(2)} KB`;
+    return `${sizeMB.toFixed(2)} MB`;
   };
 
   // Calculate stats
@@ -326,23 +384,60 @@ const UserMeetingsPage = ({
                   </div>
                 )}
 
-                {/* Attachments */}
+                {/* ✅ IMPROVED: Attachments with download functionality */}
                 {meeting.attachments && meeting.attachments.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="w-4 h-4" style={{ color: '#94a3b8' }} />
-                    <div className="text-sm" style={{ color: '#64748b' }}>
-                      {meeting.attachments.map((a, idx) => (
-                        <a
-                          key={idx}
-                          href={a}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline mr-2 font-medium"
-                          style={{ color: '#667eea' }}
-                        >
-                          Attachment {idx + 1}
-                        </a>
-                      ))}
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Paperclip className="w-4 h-4" style={{ color: '#667eea' }} />
+                      <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                        Attachments ({meeting.attachments.length})
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {meeting.attachments.map((attachment, idx) => {
+                        // Handle both object and string formats
+                        const isObject = typeof attachment === 'object';
+                        const fileName = isObject ? attachment.fileName : `Attachment ${idx + 1}`;
+                        const fileType = isObject ? attachment.fileType : '';
+                        const fileSize = isObject ? attachment.sizeMB : null;
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleAttachmentClick(attachment, meeting.id, idx)}
+                            className="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:scale-[1.02] group"
+                            style={{
+                              background: 'rgba(102, 126, 234, 0.08)',
+                              border: '1px solid rgba(102, 126, 234, 0.2)',
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                }}
+                              >
+                                {getFileIcon(fileType)}
+                              </div>
+                              <div className="text-left">
+                                <p className="text-sm font-semibold" style={{ color: '#1e293b' }}>
+                                  {fileName}
+                                </p>
+                                {fileSize && (
+                                  <p className="text-xs" style={{ color: '#64748b' }}>
+                                    {formatFileSize(fileSize)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Download 
+                              className="w-5 h-5 transition-transform group-hover:translate-y-0.5" 
+                              style={{ color: '#667eea' }} 
+                            />
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
