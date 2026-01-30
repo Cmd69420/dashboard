@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   RefreshCw,
   Clock,
@@ -12,6 +12,7 @@ import {
   User,
   Download,
   FileText,
+  Loader2,
 } from "lucide-react";
 
 const NeumorphicCard = ({ children, className = "" }) => (
@@ -35,28 +36,90 @@ const UserMeetingsPage = ({
   onRefresh,
   onPageChange,
 }) => {
+  const [downloadingAttachment, setDownloadingAttachment] = useState(null);
+
   const gotoPage = (p) => {
     if (p < 1 || p > (pagination.totalPages || 1)) return;
     onPageChange(p);
   };
 
-  // ✅ NEW: Handle attachment download
-  const handleAttachmentClick = (attachment, meetingId, index) => {
+  // ✅ NEW: Fetch and download attachment from API
+  const handleAttachmentDownload = async (meetingId, attachmentId, fileName) => {
+    const downloadKey = `${meetingId}-${attachmentId}`;
+    setDownloadingAttachment(downloadKey);
+
     try {
-      // Check if attachment is an object with fileData
-      if (typeof attachment === 'object' && attachment.fileData) {
-        // Decode base64
+      // Get token from localStorage or wherever you store it
+      const token = localStorage.getItem('token');
+      
+      // Fetch the full meeting details to get attachment with fileData
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/meetings/${meetingId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch meeting details');
+      }
+
+      const data = await response.json();
+      const meeting = data.meeting;
+
+      // Find the specific attachment
+      const attachment = meeting.attachments?.find(a => a.id === attachmentId);
+      
+      if (!attachment) {
+        throw new Error('Attachment not found');
+      }
+
+      // Check if we have fileData
+      if (!attachment.fileData) {
+        throw new Error('Attachment data not available');
+      }
+
+      // Decode base64 and create blob
+      const byteCharacters = atob(attachment.fileData);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: attachment.fileType || 'application/octet-stream' });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || attachment.fileName || `attachment`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('✅ Downloaded:', fileName);
+    } catch (error) {
+      console.error('❌ Error downloading attachment:', error);
+      alert(`Failed to download attachment: ${error.message}`);
+    } finally {
+      setDownloadingAttachment(null);
+    }
+  };
+
+  // ✅ Handle direct download if fileData is already present
+  const handleAttachmentClick = async (attachment, meetingId, index) => {
+    try {
+      // If attachment has fileData already, download directly
+      if (attachment.fileData) {
         const byteCharacters = atob(attachment.fileData);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        
-        // Create blob
         const blob = new Blob([byteArray], { type: attachment.fileType || 'application/octet-stream' });
         
-        // Create download link
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -68,30 +131,35 @@ const UserMeetingsPage = ({
         
         console.log('✅ Downloaded:', attachment.fileName);
       } 
-      // Check if it's a legacy URL string
+      // Otherwise fetch from API
+      else if (attachment.id) {
+        await handleAttachmentDownload(meetingId, attachment.id, attachment.fileName);
+      }
+      // Legacy URL format
       else if (typeof attachment === 'string') {
         window.open(attachment, '_blank');
       }
     } catch (error) {
-      console.error('❌ Error downloading attachment:', error);
+      console.error('❌ Error handling attachment:', error);
       alert('Failed to download attachment');
     }
   };
 
-  // ✅ NEW: Get file icon based on type
+  // Get file icon based on type
   const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText className="w-4 h-4" />;
+    if (!fileType) return <FileText className="w-4 h-4 text-white" />;
     
-    if (fileType.includes('image')) return <FileText className="w-4 h-4" />;
-    if (fileType.includes('pdf')) return <FileText className="w-4 h-4" />;
-    if (fileType.includes('word') || fileType.includes('document')) return <FileText className="w-4 h-4" />;
-    if (fileType.includes('spreadsheet') || fileType.includes('excel')) return <FileText className="w-4 h-4" />;
+    if (fileType.includes('image')) return <FileText className="w-4 h-4 text-white" />;
+    if (fileType.includes('pdf')) return <FileText className="w-4 h-4 text-white" />;
+    if (fileType.includes('word') || fileType.includes('document')) return <FileText className="w-4 h-4 text-white" />;
+    if (fileType.includes('spreadsheet') || fileType.includes('excel')) return <FileText className="w-4 h-4 text-white" />;
     
-    return <Paperclip className="w-4 h-4" />;
+    return <Paperclip className="w-4 h-4 text-white" />;
   };
 
-  // ✅ NEW: Format file size
+  // Format file size
   const formatFileSize = (sizeMB) => {
+    if (!sizeMB) return '';
     if (sizeMB < 0.01) return `${(sizeMB * 1024).toFixed(2)} KB`;
     return `${sizeMB.toFixed(2)} MB`;
   };
@@ -106,7 +174,7 @@ const UserMeetingsPage = ({
   }, 0);
   const avgDuration = meetings.length > 0 ? Math.round(totalDuration / meetings.length) : 0;
 
-  // Pagination with first and last
+  // Pagination
   const pages = [];
   const startPage = Math.max(1, pagination.page - 1);
   const endPage = Math.min(pagination.totalPages, pagination.page + 1);
@@ -384,7 +452,7 @@ const UserMeetingsPage = ({
                   </div>
                 )}
 
-                {/* ✅ IMPROVED: Attachments with download functionality */}
+                {/* ✅ IMPROVED: Attachments with API fetching */}
                 {meeting.attachments && meeting.attachments.length > 0 && (
                   <div className="mt-3">
                     <div className="flex items-center gap-2 mb-2">
@@ -395,17 +463,19 @@ const UserMeetingsPage = ({
                     </div>
                     <div className="space-y-2">
                       {meeting.attachments.map((attachment, idx) => {
-                        // Handle both object and string formats
                         const isObject = typeof attachment === 'object';
+                        const attachmentId = isObject ? attachment.id : null;
                         const fileName = isObject ? attachment.fileName : `Attachment ${idx + 1}`;
                         const fileType = isObject ? attachment.fileType : '';
                         const fileSize = isObject ? attachment.sizeMB : null;
+                        const isDownloading = downloadingAttachment === `${meeting.id}-${attachmentId}`;
                         
                         return (
                           <button
                             key={idx}
                             onClick={() => handleAttachmentClick(attachment, meeting.id, idx)}
-                            className="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:scale-[1.02] group"
+                            disabled={isDownloading}
+                            className="w-full flex items-center justify-between p-3 rounded-xl transition-all hover:scale-[1.02] group disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'rgba(102, 126, 234, 0.08)',
                               border: '1px solid rgba(102, 126, 234, 0.2)',
@@ -431,10 +501,14 @@ const UserMeetingsPage = ({
                                 )}
                               </div>
                             </div>
-                            <Download 
-                              className="w-5 h-5 transition-transform group-hover:translate-y-0.5" 
-                              style={{ color: '#667eea' }} 
-                            />
+                            {isDownloading ? (
+                              <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#667eea' }} />
+                            ) : (
+                              <Download 
+                                className="w-5 h-5 transition-transform group-hover:translate-y-0.5" 
+                                style={{ color: '#667eea' }} 
+                              />
+                            )}
                           </button>
                         );
                       })}
