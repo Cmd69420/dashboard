@@ -17,6 +17,7 @@ import BillingPlansPage from './BillingPlansPage';
 import BillingHistoryPage from './BillingHistoryPage';
 import PlanUsageWidget from './PlanUsageWidget';
 import MapViewerPage from './MapViewerPage';
+import JourneyTrackingPage from './JourneyTrackingPage';
 import SlotExpansionPage from './Slot';
 
 const API_BASE_URL = "https://backup-server-q2dc.onrender.com";
@@ -457,13 +458,14 @@ const Dashboard = () => {
   const navItems = [
   { id: "analytics", label: "Dashboard", icon: Home },
   { id: "mapViewer", label: "Map View", icon: MapPin },
+  { id: "journeyTracking", label: "Journey Reports", icon: TrendingUp }, // ← ADD THIS
   { id: "clients", label: "Clients", icon: FileText },
   { id: "clientServices", label: "Client Services", icon: Package },
   { id: "users", label: "Team Activity", icon: Users },
   { id: "userManagement", label: "User Management", icon: Settings },
-  { id: "slotExpansion", label: "Expand Capacity", icon: Plus },  // ← Now available for ALL admins
+  { id: "slotExpansion", label: "Expand Capacity", icon: Plus },
   ...(isSuperAdmin) ? [
-    { id: "companyManagement", label: "Company Management", icon: Building2 },  // ← Only for Super Admins
+    { id: "companyManagement", label: "Company Management", icon: Building2 },
   ] : []
 ];
 
@@ -855,6 +857,9 @@ const Dashboard = () => {
             onViewUserDetails={handleViewUserLogs}
             onRefresh={fetchData}
           />
+
+          ) : currentPage === "journeyTracking" ? (
+          <JourneyTrackingPage />
         
         ) : currentPage === "clients" ? (
           <ClientsPage
